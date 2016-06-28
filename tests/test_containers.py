@@ -1,64 +1,52 @@
 # -*- coding: utf-8 -*-
 
 
-def test_bar_fixture(testdir):
+def test_master_container_fixture(testdir):
     """Make sure that pytest accepts our fixture."""
 
-    # create a temporary pytest test module
     testdir.makepyfile("""
-        def test_sth(bar):
-            assert bar == "europython2015"
-    """)
-
-    # run pytest with the following cmd args
-    result = testdir.runpytest(
-        '--foo=europython2015',
-        '-v'
-    )
-
-    # fnmatch_lines does an assertion internally
-    result.stdout.fnmatch_lines([
-        '*::test_sth PASSED',
-    ])
-
-    # make sure that that we get a '0' exit code for the testsuite
-    assert result.ret == 0
-
-
-def test_help_message(testdir):
-    result = testdir.runpytest(
-        '--help',
-    )
-    # fnmatch_lines does an assertion internally
-    result.stdout.fnmatch_lines([
-        'containers:',
-        '*--foo=DEST_FOO*Set the value for the fixture "bar".',
-    ])
-
-
-def test_hello_ini_setting(testdir):
-    testdir.makeini("""
-        [pytest]
-        HELLO = world
-    """)
-
-    testdir.makepyfile("""
-        import pytest
-
-        @pytest.fixture
-        def hello(request):
-            return request.config.getini('HELLO')
-
-        def test_hello_world(hello):
-            assert hello == 'world'
+        def test_sth(master_container):
+            assert master_container['config']['name'].startswith("master_")
     """)
 
     result = testdir.runpytest('-v')
 
-    # fnmatch_lines does an assertion internally
     result.stdout.fnmatch_lines([
-        '*::test_hello_world PASSED',
+        '*::test_sth PASSED',
     ])
 
-    # make sure that that we get a '0' exit code for the testsuite
+    assert result.ret == 0
+
+
+def test_minion_container_fixture(testdir):
+    """Make sure that pytest accepts our fixture."""
+
+    testdir.makepyfile("""
+        def test_sth(minion_container):
+            assert minion_container['config']['name'].startswith("minion_")
+    """)
+
+    result = testdir.runpytest('-v')
+
+    result.stdout.fnmatch_lines([
+        '*::test_sth PASSED',
+    ])
+
+    assert result.ret == 0
+
+
+def test_minion_fixture(testdir):
+    """Make sure that pytest accepts our fixture."""
+
+    testdir.makepyfile("""
+        def test_sth(minion, minion_key_accepted):
+            assert minion['container']['config']['name'].startswith("minion_")
+    """)
+
+    result = testdir.runpytest('-v')
+
+    result.stdout.fnmatch_lines([
+        '*::test_sth PASSED',
+    ])
+
     assert result.ret == 0

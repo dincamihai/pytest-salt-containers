@@ -22,8 +22,19 @@ setup(
     url='https://github.com/dincamihai/pytest-containers',
     description='A Pytest plugin that builds and creates docker containers',
     long_description=read('README.rst'),
-    py_modules=['pytest_containers'],
-    install_requires=['pytest>=2.9.1'],
+    py_modules=[
+        'pkg.plugin',
+        'pkg.factories',
+        'pkg.utils',
+        'pkg.models'
+    ],
+    install_requires=[
+        'pytest>=2.9.1',
+        'docker-py',
+        'fake-factory',
+        'factory-boy',
+        'PyYAML'
+    ],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Framework :: Pytest',
@@ -43,7 +54,7 @@ setup(
     ],
     entry_points={
         'pytest11': [
-            'containers = pytest_containers',
+            'containers = pkg.plugin',
         ],
     },
 )
