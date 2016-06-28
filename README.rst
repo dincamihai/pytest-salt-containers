@@ -9,7 +9,7 @@ pytest-containers
     :target: https://ci.appveyor.com/project/dincamihai/pytest-containers/branch/master
     :alt: See Build Status on AppVeyor
 
-A Pytest plugin that builds and creates docker containers
+A Pytest plugin that makes it easy to write integration tests for salt
 
 ----
 
