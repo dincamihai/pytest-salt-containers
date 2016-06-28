@@ -1,12 +1,12 @@
-pytest-containers
+pytest-salt-containers
 ===================================
 
-.. image:: https://travis-ci.org/dincamihai/pytest-containers.svg?branch=master
-    :target: https://travis-ci.org/dincamihai/pytest-containers
+.. image:: https://travis-ci.org/dincamihai/pytest-salt-containers.svg?branch=master
+    :target: https://travis-ci.org/dincamihai/pytest-salt-containers
     :alt: See Build Status on Travis CI
 
-.. image:: https://ci.appveyor.com/api/projects/status/github/dincamihai/pytest-containers?branch=master
-    :target: https://ci.appveyor.com/project/dincamihai/pytest-containers/branch/master
+.. image:: https://ci.appveyor.com/api/projects/status/github/dincamihai/pytest-salt-containers?branch=master
+    :target: https://ci.appveyor.com/project/dincamihai/pytest-salt-containers/branch/master
     :alt: See Build Status on AppVeyor
 
 A Pytest plugin that makes it easy to write integration tests for salt
@@ -31,9 +31,9 @@ Requirements
 Installation
 ------------
 
-You can install "pytest-containers" via `pip`_ from `PyPI`_::
+You can install "pytest-salt-containers" via `pip`_ from `PyPI`_::
 
-    $ pip install pytest-containers
+    $ pip install pytest-salt-containers
 
 
 Usage
@@ -49,7 +49,7 @@ the coverage at least stays the same before you submit a pull request.
 License
 -------
 
-Distributed under the terms of the `MIT`_ license, "pytest-containers" is free and open source software
+Distributed under the terms of the `MIT`_ license, "pytest-salt-containers" is free and open source software
 
 
 Issues
@@ -64,7 +64,7 @@ If you encounter any problems, please `file an issue`_ along with a detailed des
 .. _`GNU GPL v3.0`: http://www.gnu.org/licenses/gpl-3.0.txt
 .. _`Apache Software License 2.0`: http://www.apache.org/licenses/LICENSE-2.0
 .. _`cookiecutter-pytest-plugin`: https://github.com/pytest-dev/cookiecutter-pytest-plugin
-.. _`file an issue`: https://github.com/dincamihai/pytest-containers/issues
+.. _`file an issue`: https://github.com/dincamihai/pytest-salt-containers/issues
 .. _`pytest`: https://github.com/pytest-dev/pytest
 .. _`tox`: https://tox.readthedocs.io/en/latest/
 .. _`pip`: https://pypi.python.org/pypi/pip/
