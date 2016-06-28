@@ -12,14 +12,14 @@ def read(fname):
 
 
 setup(
-    name='pytest-containers',
+    name='pytest-salt-containers',
     version='0.1.0',
     author='Mihai Dinca',
     author_email='dincamihai@gmail.com',
     maintainer='Mihai Dinca',
     maintainer_email='dincamihai@gmail.com',
     license='MIT',
-    url='https://github.com/dincamihai/pytest-containers',
+    url='https://github.com/dincamihai/pytest-salt-containers',
     description='A Pytest plugin that builds and creates docker containers',
     long_description=read('README.rst'),
     py_modules=[
