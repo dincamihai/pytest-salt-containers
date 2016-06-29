@@ -5,10 +5,6 @@ pytest-salt-containers
     :target: https://travis-ci.org/dincamihai/pytest-salt-containers
     :alt: See Build Status on Travis CI
 
-.. image:: https://ci.appveyor.com/api/projects/status/github/dincamihai/pytest-salt-containers?branch=master
-    :target: https://ci.appveyor.com/project/dincamihai/pytest-salt-containers/branch/master
-    :alt: See Build Status on AppVeyor
-
 A Pytest plugin that makes it easy to write integration tests for salt
 
 ----
