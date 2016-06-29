@@ -1,6 +1,7 @@
 import os
 import yaml
 import string
+import tarfile
 import factory
 import factory.fuzzy
 from docker import Client
@@ -38,6 +39,8 @@ class SaltConfigFactory(BaseFactory):
 
     tmpdir = None
     root = factory.LazyAttribute(lambda o: o.tmpdir.mkdir(o.factory_parent.name))
+    conf_path = factory.LazyAttribute(
+        lambda o: o.tmpdir / '{0}.conf.tar'.format(o.factory_parent.name))
     conf_type = None
     config = {}
     pillar = {}
@@ -66,6 +69,14 @@ class SaltConfigFactory(BaseFactory):
             sls_file = pillar_path / '{0}.sls'.format(name)
             sls_file.write(yaml.safe_dump(content, default_flow_style=False))
 
+        with tarfile.open(obj['conf_path'].strpath, mode='w') as archive:
+            root = obj['root']
+            for item in root.listdir():
+                archive.add(
+                    item.strpath,
+                    arcname=item.strpath.replace(root.strpath, '.'))
+        obj['root'].remove()
+
 
 class ContainerConfigFactory(BaseFactory):
     name = factory.fuzzy.FuzzyText(
@@ -82,7 +93,7 @@ class ContainerConfigFactory(BaseFactory):
 
     @factory.lazy_attribute
     def volumes(self):
-        volumes = [self.salt_config['root'].strpath, os.getcwd()]
+        volumes = [os.getcwd()]
         return volumes
 
     @factory.lazy_attribute
@@ -90,10 +101,6 @@ class ContainerConfigFactory(BaseFactory):
         params = dict(
             port_bindings={},
             binds={
-                self.salt_config['root'].strpath: {
-                    'bind': '/etc/salt/',
-                    'mode': 'rw',
-                },
                 os.getcwd(): {
                     'bind': "/salt-toaster/",
                     'mode': 'ro'
@@ -126,6 +133,11 @@ class ContainerFactory(BaseFactory):
 
         data = obj['docker_client'].inspect_container(obj['config']['name'])
         obj['ip'] = data['NetworkSettings']['IPAddress']
+
+        with obj['config']['salt_config']['conf_path'].open('rb') as f:
+            obj['docker_client'].put_archive(
+                obj['config']['name'], '/etc/salt', f.read())
+
         return obj
 
 
