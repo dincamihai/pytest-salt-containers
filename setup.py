@@ -22,12 +22,7 @@ setup(
     url='https://github.com/dincamihai/pytest-salt-containers',
     description='A Pytest plugin that builds and creates docker containers',
     long_description=read('README.rst'),
-    py_modules=[
-        'pkg.plugin',
-        'pkg.factories',
-        'pkg.utils',
-        'pkg.models'
-    ],
+    packages=['saltcontainers'],
     install_requires=[
         'pytest>=2.9.1',
         'docker-py',
@@ -54,7 +49,7 @@ setup(
     ],
     entry_points={
         'pytest11': [
-            'containers = pkg.plugin',
+            'containers = saltcontainers.plugin',
         ],
     },
 )

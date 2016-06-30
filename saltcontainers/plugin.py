@@ -4,7 +4,7 @@ import pytest
 from docker import Client
 from faker import Faker
 from utils import retry
-from .factories import ContainerFactory, MasterFactory, MinionFactory
+from saltcontainers.factories import ContainerFactory, MasterFactory, MinionFactory
 
 
 @pytest.fixture(scope="session")
