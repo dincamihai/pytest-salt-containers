@@ -63,15 +63,15 @@ def master_container(request, salt_root, master_container_extras, salt_master_co
     fake = Faker()
     obj = ContainerFactory(
         config__name='master_{0}_{1}'.format(fake.word(), fake.word()),
+        config__docker_client=docker_client,
         config__salt_config__tmpdir=salt_root,
-        docker_client=docker_client,
         config__salt_config__conf_type='master',
         config__salt_config__config=salt_master_config,
         config__salt_config__post__id='{0}_{1}'.format(fake.word(), fake.word()),
         **master_container_extras
     )
     request.addfinalizer(
-        lambda: obj['docker_client'].remove_container(
+        lambda: docker_client.remove_container(
             obj['config']['name'], force=True)
     )
     return obj
@@ -87,8 +87,8 @@ def minion_container(request, salt_root, minion_container_extras, salt_minion_co
     fake = Faker()
     obj = ContainerFactory(
         config__name='minion_{0}_{1}'.format(fake.word(), fake.word()),
+        config__docker_client=docker_client,
         config__salt_config__tmpdir=salt_root,
-        docker_client=docker_client,
         config__salt_config__conf_type='minion',
         config__salt_config__config={
             'base_config': salt_minion_config
@@ -96,7 +96,7 @@ def minion_container(request, salt_root, minion_container_extras, salt_minion_co
         **minion_container_extras
     )
     request.addfinalizer(
-        lambda: obj['docker_client'].remove_container(
+        lambda: docker_client.remove_container(
             obj['config']['name'], force=True))
     return obj
 

@@ -22,19 +22,6 @@ class DockerClientFactory(factory.StubFactory):
         return Client(base_url='unix://var/run/docker.sock')
 
 
-class ImageFactory(BaseFactory):
-    version = os.environ.get('VERSION', 'sles12sp1')
-    flavor = os.environ.get('FLAVOR') or 'products'
-    tag = factory.LazyAttribute(
-        lambda o: 'registry.mgr.suse.de/toaster-{0}-{1}'.format(o.version, o.flavor))
-    dockerfile = factory.LazyAttribute(
-        lambda o: 'Dockerfile.{0}.{1}'.format(o.version, o.flavor))
-    path = factory.LazyAttribute(lambda o: os.getcwd() + '/docker/')
-    docker_client = factory.LazyAttribute(
-        lambda o: o.factory_parent.factory_parent.docker_client)
-    path = os.getcwd() + '/docker/'
-
-
 class SaltConfigFactory(BaseFactory):
 
     tmpdir = None
@@ -44,7 +31,6 @@ class SaltConfigFactory(BaseFactory):
     conf_type = None
     config = {}
     pillar = {}
-    docker_client = None
     id = factory.fuzzy.FuzzyText(length=5, prefix='id_', chars=string.ascii_letters)
 
     @factory.post_generation
@@ -82,14 +68,14 @@ class ContainerConfigFactory(BaseFactory):
     name = factory.fuzzy.FuzzyText(
         length=5, prefix='container_', chars=string.ascii_letters)
     salt_config = factory.SubFactory(SaltConfigFactory)
-    image_obj = factory.SubFactory(ImageFactory)
-    image = factory.LazyAttribute(lambda o: o.image_obj['tag'])
+    image = factory.LazyAttribute(lambda o: os.environ.get('IMAGE'))
     command = '/bin/bash'
     environment = dict()
     tty = True
     stdin_open = True
     working_dir = "/salt-toaster/"
     ports = [4000, 4506]
+    docker_client = None
 
     @factory.lazy_attribute
     def volumes(self):
@@ -108,12 +94,11 @@ class ContainerConfigFactory(BaseFactory):
             }
         )
 
-        return self.image_obj['docker_client'].create_host_config(**params)
+        return self.docker_client.create_host_config(**params)
 
 
 class ContainerFactory(BaseFactory):
 
-    docker_client = None
     config = factory.SubFactory(ContainerConfigFactory)
     ip = None
 
@@ -123,15 +108,16 @@ class ContainerFactory(BaseFactory):
     @classmethod
     def build(cls, **kwargs):
         obj = super(ContainerFactory, cls).build(**kwargs)
-        obj['docker_client'].create_container(
+        docker_client = obj['config']['docker_client']
+        docker_client.create_container(
             **{
                 k: obj['config'][k] for k in obj['config'].keys()
-                if k not in ['salt_config', 'image_obj']
+                if k not in ['salt_config', 'docker_client']
             }
         )
-        obj['docker_client'].start(obj['config']['name'])
+        docker_client.start(obj['config']['name'])
 
-        data = obj['docker_client'].inspect_container(obj['config']['name'])
+        data = docker_client.inspect_container(obj['config']['name'])
         obj['ip'] = data['NetworkSettings']['IPAddress']
 
         return obj
@@ -144,7 +130,7 @@ class SaltFactory(BaseFactory):
     @classmethod
     def build(cls, **kwargs):
         obj = super(SaltFactory, cls).build(**kwargs)
-        docker_client = obj['container']['docker_client']
+        docker_client = obj['container']['config']['docker_client']
 
         with obj['container']['config']['salt_config']['conf_path'].open('rb') as f:
             docker_client.put_archive(

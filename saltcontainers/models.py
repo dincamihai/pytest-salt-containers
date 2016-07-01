@@ -5,9 +5,9 @@ import json
 class ContainerModel(dict):
 
     def run(self, command):
-        cmd_exec = self['docker_client'].exec_create(
+        cmd_exec = self['config']['docker_client'].exec_create(
             self['config']['name'], cmd=command)
-        output = self['docker_client'].exec_start(cmd_exec['Id'])
+        output = self['config']['docker_client'].exec_start(cmd_exec['Id'])
         return output
 
     def get_suse_release(self):
