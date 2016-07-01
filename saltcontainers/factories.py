@@ -134,54 +134,40 @@ class ContainerFactory(BaseFactory):
         data = obj['docker_client'].inspect_container(obj['config']['name'])
         obj['ip'] = data['NetworkSettings']['IPAddress']
 
-        with obj['config']['salt_config']['conf_path'].open('rb') as f:
-            obj['docker_client'].put_archive(
-                obj['config']['name'], '/etc/salt', f.read())
-
         return obj
 
 
-class MasterFactory(BaseFactory):
-    container = factory.SubFactory(
-        ContainerFactory,
-        config__name=factory.fuzzy.FuzzyText(
-            length=5, prefix='master_', chars=string.ascii_letters)
-    )
+class SaltFactory(BaseFactory):
 
-    class Meta:
-        model = MasterModel
+    container = factory.SubFactory(ContainerFactory)
 
     @classmethod
     def build(cls, **kwargs):
-        obj = super(MasterFactory, cls).build(**kwargs)
+        obj = super(SaltFactory, cls).build(**kwargs)
         docker_client = obj['container']['docker_client']
-        res = docker_client.exec_create(
-            obj['container']['config']['name'],
-            cmd='salt-master -d -l debug'
-        )
-        docker_client.exec_start(res['Id'])
-        return obj
 
+        with obj['container']['config']['salt_config']['conf_path'].open('rb') as f:
+            docker_client.put_archive(
+                obj['container']['config']['name'], '/etc/salt', f.read())
 
-class MinionFactory(BaseFactory):
-    container = factory.SubFactory(
-        ContainerFactory,
-        config__name=factory.fuzzy.FuzzyText(
-            length=5, prefix='minion_', chars=string.ascii_letters)
-    )
-    id = factory.LazyAttribute(lambda o: o.container['config']['salt_config']['id'])
-    cmd = 'salt-minion -d -l debug'
-
-    class Meta:
-        model = MinionModel
-
-    @classmethod
-    def build(cls, **kwargs):
-        obj = super(MinionFactory, cls).build(**kwargs)
-        docker_client = obj['container']['docker_client']
         res = docker_client.exec_create(
             obj['container']['config']['name'], obj['cmd']
         )
         output = docker_client.exec_start(res['Id'])
         assert 'executable file not found' not in output
         return obj
+
+
+class MasterFactory(SaltFactory):
+    cmd = 'salt-master -d -l debug'
+
+    class Meta:
+        model = MasterModel
+
+
+class MinionFactory(SaltFactory):
+    id = factory.LazyAttribute(lambda o: o.container['config']['salt_config']['id'])
+    cmd = 'salt-minion -d -l debug'
+
+    class Meta:
+        model = MinionModel
