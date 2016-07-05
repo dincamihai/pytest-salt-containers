@@ -1,10 +1,6 @@
 pytest-salt-containers
 ===================================
 
-.. image:: https://travis-ci.org/dincamihai/pytest-salt-containers.svg?branch=master
-    :target: https://travis-ci.org/dincamihai/pytest-salt-containers
-    :alt: See Build Status on Travis CI
-
 A Pytest plugin that makes it easy to write integration tests for salt
 
 ----
