@@ -55,14 +55,6 @@ class SaltConfigFactory(BaseFactory):
             sls_file = pillar_path / '{0}.sls'.format(name)
             sls_file.write(yaml.safe_dump(content, default_flow_style=False))
 
-        with tarfile.open(obj['conf_path'].strpath, mode='w') as archive:
-            root = obj['root']
-            for item in root.listdir():
-                archive.add(
-                    item.strpath,
-                    arcname=item.strpath.replace(root.strpath, '.'))
-        obj['root'].remove()
-
 
 class ContainerConfigFactory(BaseFactory):
     name = factory.fuzzy.FuzzyText(
@@ -131,8 +123,16 @@ class SaltFactory(BaseFactory):
     def build(cls, **kwargs):
         obj = super(SaltFactory, cls).build(**kwargs)
         docker_client = obj['container']['config']['docker_client']
+        conf_path = obj['container']['config']['salt_config']['conf_path']
 
-        with obj['container']['config']['salt_config']['conf_path'].open('rb') as f:
+        with tarfile.open(conf_path.strpath, mode='w') as archive:
+            root = obj['container']['config']['salt_config']['root']
+            for item in root.listdir():
+                archive.add(
+                    item.strpath,
+                    arcname=item.strpath.replace(root.strpath, '.'))
+
+        with conf_path.open('rb') as f:
             docker_client.put_archive(
                 obj['container']['config']['name'], '/etc/salt', f.read())
 
