@@ -60,7 +60,7 @@ class ContainerConfigFactory(BaseFactory):
     name = factory.fuzzy.FuzzyText(
         length=5, prefix='container_', chars=string.ascii_letters)
     salt_config = factory.SubFactory(SaltConfigFactory)
-    image = factory.LazyAttribute(lambda o: os.environ.get('IMAGE'))
+    image = None
     command = '/bin/bash'
     environment = dict()
     tty = True
@@ -100,6 +100,7 @@ class ContainerFactory(BaseFactory):
     @classmethod
     def build(cls, **kwargs):
         obj = super(ContainerFactory, cls).build(**kwargs)
+        assert obj['config']['image']
         docker_client = obj['config']['docker_client']
         docker_client.create_container(
             **{

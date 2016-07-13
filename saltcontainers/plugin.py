@@ -4,7 +4,14 @@ import pytest
 from docker import Client
 from faker import Faker
 from utils import retry
-from saltcontainers.factories import ContainerFactory, MasterFactory, MinionFactory
+from saltcontainers.factories import (
+    ContainerFactory, MasterFactory, MinionFactory
+)
+
+
+def pytest_addoption(parser):
+    parser.addini('IMAGE', help='os version docker image')
+    parser.addini('MINION_IMAGE', help='override minion docker image')
 
 
 @pytest.fixture(scope="session")
@@ -64,6 +71,7 @@ def master_container(request, salt_root, master_container_extras, salt_master_co
     obj = ContainerFactory(
         config__name='master_{0}_{1}'.format(fake.word(), fake.word()),
         config__docker_client=docker_client,
+        config__image=request.config.getini('IMAGE'),
         config__salt_config__tmpdir=salt_root,
         config__salt_config__conf_type='master',
         config__salt_config__config=salt_master_config,
@@ -85,9 +93,11 @@ def minion_container_extras():
 @pytest.fixture(scope="module")
 def minion_container(request, salt_root, minion_container_extras, salt_minion_config, docker_client):
     fake = Faker()
+    image = request.config.getini('MINION_IMAGE') or request.config.getini('IMAGE')
     obj = ContainerFactory(
         config__name='minion_{0}_{1}'.format(fake.word(), fake.word()),
         config__docker_client=docker_client,
+        config__image=image,
         config__salt_config__tmpdir=salt_root,
         config__salt_config__conf_type='minion',
         config__salt_config__config={

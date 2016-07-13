@@ -1,6 +1,16 @@
-import os
 import pytest
-from saltcontainers.factories import ContainerConfigFactory
+
+
+pytestmark = pytest.mark.usefixtures('config')
+
+
+@pytest.fixture
+def config(testdir):
+    testdir.makeini("""
+        [pytest]
+        IMAGE = registry.mgr.suse.de/toaster-sles12sp1-products
+        MINION_IMAGE = registry.mgr.suse.de/toaster-sles12sp1-products
+    """)
 
 
 @pytest.fixture(scope="module")
@@ -8,18 +18,48 @@ def salt_master_config(file_root, pillar_root):
     return {'this': {'is': {'my': ['config']}}}
 
 
-def test_config_without_volume_mounting(master):
-    output = master['container'].run('cat /etc/salt/master.d/this.conf')
-    assert output == 'is:\n  my:\n  - config\n'
-    assert master['container']['config']['volumes'] == [os.getcwd()]
+def test_config_without_volume_mounting(testdir):
+    testdir.makepyfile("""
+        import os
 
 
-def test_container_config_image():
-    config = ContainerConfigFactory(salt_config=None, host_config=None)
-    assert config['image'] == 'registry.mgr.suse.de/toaster-sles12sp1-products'
+        def test_sth(master):
+            output = master['container'].run('cat /etc/salt/master.d/this.conf')
+            assert master['container']['config']['volumes'] == [os.getcwd()]
+    """)
+
+    result = testdir.runpytest('-v')
+
+    result.stdout.fnmatch_lines(['*::test_sth PASSED'])
 
 
-def test_container_config__host_config(docker_client):
-    config = ContainerConfigFactory(
-        salt_config=None, docker_client=docker_client)
-    assert config['host_config']
+def test_container_config_image(testdir):
+    testdir.makepyfile("""
+        from saltcontainers.factories import ContainerConfigFactory
+
+
+        def test_sth():
+            config = ContainerConfigFactory(salt_config=None, host_config=None)
+            assert config['image'] is None
+    """)
+
+    result = testdir.runpytest('-v')
+
+    result.stdout.fnmatch_lines(['*::test_sth PASSED'])
+
+
+def test_container_config__host_config(testdir):
+    testdir.makepyfile("""
+        from mock import MagicMock
+        from saltcontainers.factories import ContainerConfigFactory
+
+
+        def test_sth():
+            config = ContainerConfigFactory(
+                salt_config=None, docker_client=MagicMock())
+            assert config['host_config']
+    """)
+
+    result = testdir.runpytest('-v')
+
+    result.stdout.fnmatch_lines(['*::test_sth PASSED'])

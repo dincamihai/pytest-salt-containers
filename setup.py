@@ -28,7 +28,7 @@ setup(
         'docker-py',
         'fake-factory',
         'factory-boy',
-        'PyYAML'
+        'PyYAML',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
