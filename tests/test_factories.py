@@ -10,12 +10,26 @@ def config(testdir):
         [pytest]
         IMAGE = registry.mgr.suse.de/toaster-sles12sp1-products
         MINION_IMAGE = registry.mgr.suse.de/toaster-sles12sp1-products
+        CONFIG_TAG = #sometag
     """)
 
 
 @pytest.fixture(scope="module")
 def salt_master_config(file_root, pillar_root):
     return {'this': {'is': {'my': ['config']}}}
+
+
+def test_configuration(testdir):
+    testdir.makepyfile("""
+        def test_sth(request):
+            assert request.config.getini('IMAGE') == 'registry.mgr.suse.de/toaster-sles12sp1-products'
+            assert request.config.getini('MINION_IMAGE') == 'registry.mgr.suse.de/toaster-sles12sp1-products'
+            assert request.config.getini('CONFIG_TAG') == '#sometag'
+    """)
+
+    result = testdir.runpytest('-v')
+
+    result.stdout.fnmatch_lines(['*::test_sth PASSED'])
 
 
 def test_config_without_volume_mounting(testdir):
