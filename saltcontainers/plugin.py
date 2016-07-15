@@ -13,8 +13,8 @@ def pytest_addoption(parser):
     parser.addini('IMAGE', help='docker image')
     parser.addini('MINION_IMAGE', help='minion docker image')
     parser.addini(
-        'CONFIG_TAG',
-        help='defines what master and minion os versions are used',
+        'TAGS',
+        help='assign tags for this configuration',
         type='args'
     )
 

@@ -10,7 +10,7 @@ def config(testdir):
         [pytest]
         IMAGE = registry.mgr.suse.de/toaster-sles12sp1-products
         MINION_IMAGE = registry.mgr.suse.de/toaster-sles12sp1-products
-        CONFIG_TAG = #sometag #some-other-tag
+        TAGS = #sometag #some-other-tag
     """)
 
 
@@ -24,7 +24,7 @@ def test_configuration(testdir):
         def test_sth(request):
             assert request.config.getini('IMAGE') == 'registry.mgr.suse.de/toaster-sles12sp1-products'
             assert request.config.getini('MINION_IMAGE') == 'registry.mgr.suse.de/toaster-sles12sp1-products'
-            assert request.config.getini('CONFIG_TAG') == ['#sometag', '#some-other-tag']
+            assert request.config.getini('TAGS') == ['#sometag', '#some-other-tag']
     """)
 
     result = testdir.runpytest('-v')
