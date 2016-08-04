@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
+import docker
 from docker import Client
 from faker import Faker
 from utils import retry
@@ -83,10 +84,7 @@ def master_container(request, salt_root, master_container_extras, salt_master_co
         config__salt_config__post__id='{0}_{1}'.format(fake.word(), fake.word()),
         **master_container_extras
     )
-    request.addfinalizer(
-        lambda: docker_client.remove_container(
-            obj['config']['name'], force=True)
-    )
+    request.addfinalizer(obj.remove)
     return obj
 
 
@@ -110,9 +108,7 @@ def minion_container(request, salt_root, minion_container_extras, salt_minion_co
         },
         **minion_container_extras
     )
-    request.addfinalizer(
-        lambda: docker_client.remove_container(
-            obj['config']['name'], force=True))
+    request.addfinalizer(obj.remove)
     return obj
 
 
@@ -130,17 +126,19 @@ def minion(request, minion_container):
 @pytest.fixture(scope='module')
 def minion_key_cached(master, minion):
 
+    @retry
     def cache():
         return minion['id'] in master.salt_key(minion['id'])['minions_pre']
 
-    assert retry(cache) is True
+    assert retry(cache)() is True
 
 
 @pytest.fixture(scope='module')
 def minion_key_accepted(master, minion, minion_key_cached):
     master.salt_key_accept(minion['id'])
 
+    @retry
     def accept():
         return minion['id'] in master.salt_key()['minions']
 
-    assert retry(accept) is True
+    assert accept() is True

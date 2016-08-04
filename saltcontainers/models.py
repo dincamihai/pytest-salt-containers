@@ -1,5 +1,7 @@
 import re
 import json
+from utils import retry
+from docker.errors import APIError
 
 
 class ContainerModel(dict):
@@ -27,6 +29,15 @@ class ContainerModel(dict):
                 [it.replace('"', '').strip().split('=') for it in content.split('\n')]
             )
         )
+
+    @retry
+    def remove(self):
+        try:
+            self['config']['docker_client'].remove_container(
+                self['config']['name'], force=True)
+            return True
+        except APIError:
+            return False
 
 
 class MasterModel(dict):

@@ -22,7 +22,7 @@ def mocks(request, testdir):
     my_mocks = patch.multiple(
         'saltcontainers.plugin',
         Client=mock_docker_client,
-        retry=Mock(return_value=True)
+        retry=Mock(return_value=Mock(return_value=True))
     )
     my_mocks.start()
     request.addfinalizer(my_mocks.stop)
