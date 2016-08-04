@@ -1,11 +1,11 @@
 import re
 import json
 from utils import retry
-from docker.errors import APIError
 
 
 class ContainerModel(dict):
 
+    @retry()
     def run(self, command, stream=False):
         cmd_exec = self['config']['docker_client'].exec_create(
             self['config']['name'], cmd=command)
@@ -30,14 +30,10 @@ class ContainerModel(dict):
             )
         )
 
-    @retry
+    @retry()
     def remove(self):
-        try:
-            self['config']['docker_client'].remove_container(
-                self['config']['name'], force=True)
-            return True
-        except APIError:
-            return False
+        self['config']['docker_client'].remove_container(
+            self['config']['name'], force=True)
 
 
 class MasterModel(dict):

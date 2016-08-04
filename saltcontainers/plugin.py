@@ -126,18 +126,19 @@ def minion(request, minion_container):
 @pytest.fixture(scope='module')
 def minion_key_cached(master, minion):
 
-    @retry
+    @retry(expected=True)
     def cache():
         return minion['id'] in master.salt_key(minion['id'])['minions_pre']
 
-    assert retry(cache)() is True
+    out = cache()
+    assert out is True
 
 
 @pytest.fixture(scope='module')
 def minion_key_accepted(master, minion, minion_key_cached):
     master.salt_key_accept(minion['id'])
 
-    @retry
+    @retry(expected=True)
     def accept():
         return minion['id'] in master.salt_key()['minions']
 
