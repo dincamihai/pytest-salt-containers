@@ -1,5 +1,6 @@
 import re
 import json
+import subprocess
 from utils import retry
 
 
@@ -30,10 +31,14 @@ class ContainerModel(dict):
             )
         )
 
-    @retry()
     def remove(self):
-        self['config']['docker_client'].remove_container(
-            self['config']['name'], force=True)
+        name = self['config']['name']
+        proc = subprocess.Popen('docker rm -f {0}'.format(name), shell=True)
+        out, err = proc.communicate()
+        if proc.returncode:
+            print err
+        else:
+            print out
 
 
 class MasterModel(dict):
