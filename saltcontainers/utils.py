@@ -5,14 +5,9 @@ from functools import wraps
 TIME_LIMIT = 120
 
 
-class TimeLimitReached(Exception):
-
-    """Used in tests to limit blocking time."""
-
-
 def time_limit_reached(start_time):
     if TIME_LIMIT < (time.time() - start_time):
-        raise TimeLimitReached
+        return True
 
 
 def retry(expected=None):
