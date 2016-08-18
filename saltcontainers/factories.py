@@ -61,7 +61,7 @@ class ContainerConfigFactory(BaseFactory):
         length=5, prefix='container_', chars=string.ascii_letters)
     salt_config = factory.SubFactory(SaltConfigFactory)
     image = None
-    command = '/bin/bash'
+    entrypoint = '/bin/bash'
     environment = dict()
     tty = True
     stdin_open = True
