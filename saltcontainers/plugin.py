@@ -39,8 +39,8 @@ def pillar_root(salt_root):
 
 @pytest.fixture(scope="session")
 def file_root(salt_root):
-    salt_root.mkdir('topfiles')
-    return '/etc/salt/topfiles'
+    salt_root.mkdir('sls')
+    return '/etc/salt/sls'
 
 
 @pytest.fixture(scope="module")

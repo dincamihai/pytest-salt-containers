@@ -31,6 +31,7 @@ class SaltConfigFactory(BaseFactory):
     conf_type = None
     config = {}
     pillar = {}
+    sls = {}
     id = factory.fuzzy.FuzzyText(length=5, prefix='id_', chars=string.ascii_letters)
 
     @factory.post_generation
@@ -53,6 +54,11 @@ class SaltConfigFactory(BaseFactory):
         pillar_path = obj['root'].mkdir('pillar')
         for name, content in obj['pillar'].items():
             sls_file = pillar_path / '{0}.sls'.format(name)
+            sls_file.write(yaml.safe_dump(content, default_flow_style=False))
+
+        sls_path = obj['root'].mkdir('sls')
+        for name, content in obj['sls'].items():
+            sls_file = sls_path / '{0}.sls'.format(name)
             sls_file.write(yaml.safe_dump(content, default_flow_style=False))
 
 

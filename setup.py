@@ -25,7 +25,7 @@ setup(
     packages=['saltcontainers'],
     install_requires=[
         'pytest>=2.9.1',
-        'docker-py',
+        'docker-py==1.8.0',
         'fake-factory',
         'factory-boy',
         'PyYAML',

@@ -77,3 +77,39 @@ def test_container_config__host_config(testdir):
     result = testdir.runpytest('-v')
 
     result.stdout.fnmatch_lines(['*::test_sth PASSED'])
+
+
+def test_container_config__salt_config__sls(testdir):
+    testdir.makepyfile("""
+        import yaml
+        from mock import MagicMock
+        from saltcontainers.factories import ContainerConfigFactory
+
+
+        def test_sth(docker_client, salt_root, file_root):
+            config = ContainerConfigFactory(
+                name='container-test',
+                docker_client=docker_client,
+                salt_config__tmpdir=salt_root,
+                salt_config__sls={
+                    'top': {'base': {'some-minion-id': ['latest']}},
+                    'latest': {
+                        'abc': {'pkg.latest': [{'name': 'some-package'}]}
+                    }
+                }
+            )
+            file_root_dir = 'sls'
+            assert file_root == "/etc/salt/{0}".format(file_root_dir)
+            top_sls = yaml.load(
+                (salt_root / 'container-test' / file_root_dir / 'top.sls').read()
+            )
+            assert top_sls['base']['some-minion-id'] == ['latest']
+            latest_sls = yaml.load(
+                (salt_root / 'container-test' / file_root_dir / 'latest.sls').read()
+            )
+            assert latest_sls['abc']['pkg.latest'][0]['name'] == 'some-package'
+    """)
+
+    result = testdir.runpytest('-v')
+
+    result.stdout.fnmatch_lines(['*::test_sth PASSED'])
