@@ -1,7 +1,11 @@
 import re
 import json
+import logging
 import subprocess
 from utils import retry
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class ContainerModel(dict):
@@ -33,12 +37,12 @@ class ContainerModel(dict):
 
     def remove(self):
         name = self['config']['name']
-        proc = subprocess.Popen('docker rm -f {0}'.format(name), shell=True)
+        proc = subprocess.Popen('docker rm -f {0} > /dev/null'.format(name), shell=True)
         out, err = proc.communicate()
         if proc.returncode:
-            print err
+            logger.error(err)
         else:
-            print out
+            logger.debug(out)
 
 
 class MasterModel(dict):

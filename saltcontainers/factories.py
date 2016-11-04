@@ -1,11 +1,16 @@
 import os
 import yaml
 import string
+import logging
 import tarfile
 import factory
 import factory.fuzzy
 from docker import Client
 from models import ContainerModel, MasterModel, MinionModel
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class BaseFactory(factory.Factory):
@@ -118,6 +123,14 @@ class ContainerFactory(BaseFactory):
 
         data = docker_client.inspect_container(obj['config']['name'])
         obj['ip'] = data['NetworkSettings']['IPAddress']
+
+        try:
+            message = "{0}: {1}".format(
+                obj['config']['salt_config']['conf_type'],
+                obj.run('salt --version').strip())
+            logger.info(message)
+        except TypeError:
+            pass
 
         return obj
 

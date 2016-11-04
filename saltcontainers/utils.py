@@ -1,5 +1,9 @@
 import time
+import logging
 from functools import wraps
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 TIME_LIMIT = 120
@@ -18,12 +22,12 @@ def retry(expected=None):
             output = None
             start_time = time.time()
             while not success and not time_limit_reached(start_time):
-                print('retry: ' + func.func_name)
+                logger.debug('retry: ' + func.func_name)
                 try:
                     output = func(*args, **kwargs)
                     success = (expected is None) or (output is expected)
                 except Exception as exc:
-                    print exc.message
+                    logger.error(exc.message)
                     success = False
                     output = None
                 if not success:
