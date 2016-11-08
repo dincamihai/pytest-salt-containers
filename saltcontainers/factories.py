@@ -165,6 +165,7 @@ class SaltFactory(BaseFactory):
 
 
 class MasterFactory(SaltFactory):
+    id = factory.LazyAttribute(lambda o: o.container['config']['salt_config']['id'])
     cmd = 'salt-master -d -l debug'
 
     class Meta:

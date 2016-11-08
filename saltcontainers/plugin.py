@@ -151,21 +151,22 @@ def minion_key_accepted(master, minion, minion_key_cached):
 
 @pytest.fixture(scope='module')
 def setup(request, module_config):
-    masters = dict()
-    minions = dict()
+    fixtures = dict()
     for master_item in module_config['masters']:
-        master = MasterFactory(
-            **request.getfuncargvalue(master_item['fixture']))
+        master = MasterFactory(**master_item['config'])
+        master_item['id'] = master['id']
         request.addfinalizer(master['container'].remove)
-        masters[master_item['fixture']] = master
+        fixtures[master['id']] = dict()
+        fixtures[master['id']]['fixture'] = master
+        fixtures[master['id']]['minions'] = []
         for minion_item in master_item['minions']:
-            minion_args = request.getfuncargvalue(minion_item['fixture'])
-            minion_args[
+            minion_item['config'][
                 'container__config__salt_config__config'
             ]['base_config']['master'] = master['container']['ip']
-            minion = MinionFactory(**minion_args)
+            minion = MinionFactory(**minion_item['config'])
+            fixtures[master['id']]['minions'].append(minion)
+            minion_item['id'] = minion['id']
             request.addfinalizer(minion['container'].remove)
-            minions[minion_item['fixture']] = minion
             wait_cached(master, minion)
             accept(master, minion)
-    return masters, minions
+    return fixtures, module_config
