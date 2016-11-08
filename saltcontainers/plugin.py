@@ -137,3 +137,43 @@ def minion_key_accepted(master, minion, minion_key_cached):
     master['container'].run(
         'salt-run state.event tagmatch="{0}" count=1'.format(tag))
     return minion['id'] in master.salt_key(minion['id'])['minions']
+
+
+@pytest.fixture(scope='module')
+def module_config():
+    return {
+        'masters': [
+            {
+                'fixture': 'master',
+                'minions': [
+                    {'fixture': 'minion'}
+                ]
+            }
+        ]
+    }
+
+
+@pytest.fixture(scope='module')
+def setup(request, module_config):
+    masters = dict()
+    minions = dict()
+
+    for master_item in module_config['masters']:
+        master = request.getfuncargvalue(master_item['fixture'])
+        masters[master_item['fixture']] = master
+        for minion_item in master_item['minions']:
+            minion = request.getfuncargvalue(minion_item['fixture'])
+            minions[minion_item['fixture']] = minion
+
+            master['container'].run(
+                'salt-run state.event tagmatch="salt/auth" count=1')
+            assert minion['id'] in master.salt_key(minion['id'])['minions_pre']
+
+            master.salt_key_accept(minion['id'])
+            tag = "salt/minion/{0}/start".format(minion['id'])
+            master['container'].run(
+                'salt-run state.event tagmatch="{0}" count=1'.format(tag))
+
+            assert minion['id'] in master.salt_key(minion['id'])['minions']
+
+    return masters, minions
