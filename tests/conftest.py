@@ -1,5 +1,5 @@
 import pytest
-from mock import patch, Mock, MagicMock
+from mock import patch, MagicMock
 
 
 pytest_plugins = 'pytester'
@@ -7,22 +7,21 @@ pytest_plugins = 'pytester'
 
 @pytest.fixture
 def mocks(request, testdir):
-    mock_docker_client = MagicMock(
-        **{
-            'return_value.inspect_container.return_value': {
-                'NetworkSettings': {'IPAddress': 'fake-ip'}},
-            'return_value.exec_start.return_value': '{"minions_pre": ["abc"]}'
-        }
-    )
     testdir.makeini("""
         [pytest]
         IMAGE = myregistry/defaultimage
         MINION_IMAGE = myregistry/minion_image
     """)
-    my_mocks = patch.multiple(
+    plugin_mocks = patch.multiple(
         'saltcontainers.plugin',
-        Client=mock_docker_client,
-        retry=Mock(return_value=Mock(return_value=Mock(return_value=True)))
-    )
-    my_mocks.start()
-    request.addfinalizer(my_mocks.stop)
+        Client=MagicMock(**{
+            'return_value.inspect_container.return_value': {
+                'NetworkSettings': {'IPAddress': 'fake-ip'}}
+        }))
+    salt_key_mock = patch(
+        'saltcontainers.factories.MasterModel.salt_key',
+        **{'return_value.__getitem__.return_value.__contains__.return_value': True})
+    plugin_mocks.start()
+    request.addfinalizer(plugin_mocks.stop)
+    salt_key_mock.start()
+    request.addfinalizer(salt_key_mock.stop)

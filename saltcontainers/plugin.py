@@ -125,21 +125,15 @@ def minion(request, minion_container):
 
 @pytest.fixture(scope='module')
 def minion_key_cached(master, minion):
-
-    @retry(expected=True)
-    def cache():
-        return minion['id'] in master.salt_key(minion['id'])['minions_pre']
-
-    out = cache()
-    assert out is True
+    master['container'].run(
+        'salt-run state.event tagmatch="salt/auth" count=1')
+    assert minion['id'] in master.salt_key(minion['id'])['minions_pre']
 
 
 @pytest.fixture(scope='module')
 def minion_key_accepted(master, minion, minion_key_cached):
     master.salt_key_accept(minion['id'])
-
-    @retry(expected=True)
-    def accept():
-        return minion['id'] in master.salt_key()['minions']
-
-    assert accept() is True
+    tag = "salt/minion/{0}/start".format(minion['id'])
+    master['container'].run(
+        'salt-run state.event tagmatch="{0}" count=1'.format(tag))
+    return minion['id'] in master.salt_key(minion['id'])['minions']
