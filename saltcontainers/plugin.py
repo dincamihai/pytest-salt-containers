@@ -150,23 +150,59 @@ def minion_key_accepted(master, minion, minion_key_cached):
 
 
 @pytest.fixture(scope='module')
-def setup(request, module_config):
-    fixtures = dict()
+def setup(request, docker_client, module_config, salt_root, pillar_root, file_root):
+    fake = Faker()
+    config = dict(masters=[])
+    master_image = request.config.getini('IMAGE')
+    minion_image = master_image or request.config.getini('IMAGE')
     for master_item in module_config['masters']:
-        master = MasterFactory(**master_item['config'])
-        master_item['id'] = master['id']
+
+        config_item = dict(id=None, fixture=None, minions=[])
+
+        master_name = 'master_{0}_{1}'.format(fake.word(), fake.word())
+        master = MasterFactory(
+            container__config__name=master_name,
+            container__config__image=master_image,
+            container__config__docker_client=docker_client,
+            container__config__salt_config__conf_type='master',
+            container__config__salt_config__tmpdir=salt_root,
+            container__config__salt_config__config={
+                'base_config': {
+                    'pillar_roots': {'base': [pillar_root]},
+                    'file_roots': {'base': [file_root]}}},
+            **master_item['config']
+        )
         request.addfinalizer(master['container'].remove)
-        fixtures[master['id']] = dict()
-        fixtures[master['id']]['fixture'] = master
-        fixtures[master['id']]['minions'] = []
+
+        config_item['id'] = master['id']
+        config_item['fixture'] = master
+
         for minion_item in master_item['minions']:
-            minion_item['config'][
-                'container__config__salt_config__config'
-            ]['base_config']['master'] = master['container']['ip']
-            minion = MinionFactory(**minion_item['config'])
-            fixtures[master['id']]['minions'].append(minion)
-            minion_item['id'] = minion['id']
+
+            sub_config_item = dict(id=None, fixture=None)
+
+            minion_name = 'minion_{0}_{1}'.format(fake.word(), fake.word())
+            minion = MinionFactory(
+                container__config__name=minion_name,
+                container__config__image=minion_image,
+                container__config__docker_client=docker_client,
+                container__config__salt_config__conf_type='minion',
+                container__config__salt_config__tmpdir=salt_root,
+                container__config__salt_config__config={
+                    'base_config': {'master': master['container']['ip']}
+                },
+                **minion_item['config']
+            )
             request.addfinalizer(minion['container'].remove)
+
+            sub_config_item['id'] = minion['id']
+            sub_config_item['fixture'] = minion
+
+            config_item['minions'].append(sub_config_item)
+
             wait_cached(master, minion)
             accept(master, minion)
-    return fixtures, module_config
+
+        config['masters'].append(config_item)
+
+    return config, module_config
