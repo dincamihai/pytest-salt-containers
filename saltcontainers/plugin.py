@@ -149,29 +149,52 @@ def minion_key_accepted(master, minion, minion_key_cached):
     accept(master, minion)
 
 
+def default_master_args(request, docker_client, salt_root, file_root, pillar_root):
+    fake = Faker()
+    return dict(
+        container__config__name='master_{0}_{1}'.format(
+            fake.word(), fake.word()),
+        container__config__image=request.config.getini('IMAGE'),
+        container__config__docker_client=docker_client,
+        container__config__salt_config__conf_type='master',
+        container__config__salt_config__tmpdir=salt_root,
+        container__config__salt_config__config={
+            'base_config': {
+                'pillar_roots': {'base': [pillar_root]},
+                'file_roots': {'base': [file_root]}}},
+    )
+
+
+def default_minion_args(request, docker_client, salt_root, master_ip):
+    fake = Faker()
+    return dict(
+        container__config__name='minion_{0}_{1}'.format(
+            fake.word(), fake.word()),
+        container__config__image=(
+            request.config.getini('IMAGE') or
+            request.config.getini('MINION_IMAGE')),
+        container__config__docker_client=docker_client,
+        container__config__salt_config__conf_type='minion',
+        container__config__salt_config__tmpdir=salt_root,
+        container__config__salt_config__config={
+            'base_config': {'master': master_ip}
+        }
+    )
+
+
+
 @pytest.fixture(scope='module')
 def setup(request, docker_client, module_config, salt_root, pillar_root, file_root):
-    fake = Faker()
     config = dict(masters=[])
-    master_image = request.config.getini('IMAGE')
-    minion_image = master_image or request.config.getini('IMAGE')
     for master_item in module_config['masters']:
 
         config_item = dict(id=None, fixture=None, minions=[])
 
-        master_name = 'master_{0}_{1}'.format(fake.word(), fake.word())
-        master = MasterFactory(
-            container__config__name=master_name,
-            container__config__image=master_image,
-            container__config__docker_client=docker_client,
-            container__config__salt_config__conf_type='master',
-            container__config__salt_config__tmpdir=salt_root,
-            container__config__salt_config__config={
-                'base_config': {
-                    'pillar_roots': {'base': [pillar_root]},
-                    'file_roots': {'base': [file_root]}}},
-            **master_item['config']
-        )
+        master_args = default_master_args(
+            request, docker_client, salt_root, file_root, pillar_root)
+        master_args.update(master_item['config'])
+
+        master = MasterFactory(**master_args)
         request.addfinalizer(master['container'].remove)
 
         config_item['id'] = master['id']
@@ -181,18 +204,11 @@ def setup(request, docker_client, module_config, salt_root, pillar_root, file_ro
 
             sub_config_item = dict(id=None, fixture=None)
 
-            minion_name = 'minion_{0}_{1}'.format(fake.word(), fake.word())
-            minion = MinionFactory(
-                container__config__name=minion_name,
-                container__config__image=minion_image,
-                container__config__docker_client=docker_client,
-                container__config__salt_config__conf_type='minion',
-                container__config__salt_config__tmpdir=salt_root,
-                container__config__salt_config__config={
-                    'base_config': {'master': master['container']['ip']}
-                },
-                **minion_item['config']
-            )
+            minion_args = default_minion_args(
+                request, docker_client, salt_root, master['container']['ip'])
+            minion_args.update(minion_item['config'])
+
+            minion = MinionFactory(**minion_args)
             request.addfinalizer(minion['container'].remove)
 
             sub_config_item['id'] = minion['id']
