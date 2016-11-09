@@ -13,7 +13,7 @@ def read(fname):
 
 setup(
     name='pytest-salt-containers',
-    version='0.2.9',
+    version='0.2-devel',
     author='Mihai Dinca',
     author_email='dincamihai@gmail.com',
     maintainer='Mihai Dinca',
