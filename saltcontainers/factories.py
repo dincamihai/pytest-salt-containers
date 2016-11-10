@@ -1,4 +1,5 @@
 import os
+import py
 import yaml
 import string
 import logging
@@ -62,9 +63,9 @@ class SaltConfigFactory(BaseFactory):
             sls_file.write(yaml.safe_dump(content, default_flow_style=False))
 
         sls_path = obj['root'].mkdir('sls')
-        for name, content in obj['sls'].items():
+        for name, source in obj['sls'].items():
             sls_file = sls_path / '{0}.sls'.format(name)
-            sls_file.write(yaml.safe_dump(content, default_flow_style=False))
+            sls_file.write(py.path.local(source).read())
 
 
 class ContainerConfigFactory(BaseFactory):

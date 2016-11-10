@@ -24,6 +24,7 @@ setup(
     long_description=read('README.rst'),
     packages=['saltcontainers'],
     install_requires=[
+        'py',
         'pytest>=2.9.1',
         'docker-py==1.8.0',
         'fake-factory',

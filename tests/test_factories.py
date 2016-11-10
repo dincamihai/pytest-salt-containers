@@ -80,6 +80,16 @@ def test_container_config__host_config(testdir):
 
 
 def test_container_config__salt_config__sls(testdir):
+    (testdir.tmpdir / 'top.sls').write( """
+        base:
+          some-minion-id:
+            - latest
+    """)
+    (testdir.tmpdir / 'latest.sls').write("""
+        abc:
+          pkg.latest:
+            - name: some-package
+    """)
     testdir.makepyfile("""
         import yaml
         from mock import MagicMock
@@ -92,14 +102,12 @@ def test_container_config__salt_config__sls(testdir):
                 docker_client=docker_client,
                 salt_config__tmpdir=salt_root,
                 salt_config__sls={
-                    'top': {'base': {'some-minion-id': ['latest']}},
-                    'latest': {
-                        'abc': {'pkg.latest': [{'name': 'some-package'}]}
-                    }
+                    'top': 'top.sls',
+                    'latest': 'latest.sls'
                 }
             )
             file_root_dir = 'sls'
-            assert file_root == "/etc/salt/{0}".format(file_root_dir)
+            assert file_root == "/etc/salt/" + file_root_dir
             top_sls = yaml.load(
                 (salt_root / 'container-test' / file_root_dir / 'top.sls').read()
             )
