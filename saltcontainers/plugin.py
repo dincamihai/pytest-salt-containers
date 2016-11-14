@@ -200,7 +200,7 @@ def setup(request, docker_client, module_config, salt_root, pillar_root, file_ro
         config_item['id'] = master['id']
         config_item['fixture'] = master
 
-        for minion_item in master_item['minions']:
+        for minion_item in master_item.get('minions', []):
 
             sub_config_item = dict(id=None, fixture=None)
 
