@@ -192,7 +192,7 @@ def setup(request, docker_client, module_config, salt_root, pillar_root, file_ro
 
         master_args = default_master_args(
             request, docker_client, salt_root, file_root, pillar_root)
-        master_args.update(master_item['config'])
+        master_args.update(master_item.get('config', {}))
 
         master = MasterFactory(**master_args)
         request.addfinalizer(master['container'].remove)
@@ -206,7 +206,7 @@ def setup(request, docker_client, module_config, salt_root, pillar_root, file_ro
 
             minion_args = default_minion_args(
                 request, docker_client, salt_root, master['container']['ip'])
-            minion_args.update(minion_item['config'])
+            minion_args.update(minion_item.get('config', {}))
 
             minion = MinionFactory(**minion_args)
             request.addfinalizer(minion['container'].remove)
