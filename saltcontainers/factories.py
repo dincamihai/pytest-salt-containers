@@ -41,7 +41,18 @@ class SaltConfigFactory(BaseFactory):
     id = factory.fuzzy.FuzzyText(length=5, prefix='id_', chars=string.ascii_letters)
 
     @factory.post_generation
+    def extra_configs(obj, create, extracted, **kwargs):
+        if extracted:
+            config_path = obj['root'] / '{}.d'.format(obj['conf_type'])
+            config_path.ensure_dir()
+            for name, config in extracted.items():
+                config_file = config_path / '{0}.conf'.format(name)
+                config_file.write(yaml.safe_dump(config, default_flow_style=False))
+
+    @factory.post_generation
     def post(obj, create, extracted, **kwargs):
+        config_path = obj['root'] / '{}.d'.format(obj['conf_type'])
+        config_path.ensure_dir()
         config_file = obj['root'] / obj['conf_type']
         main_config = {
             'include': '{0}.d/*'.format(obj['conf_type'])
@@ -52,7 +63,7 @@ class SaltConfigFactory(BaseFactory):
         config_file.write(
             yaml.safe_dump(main_config, default_flow_style=False))
 
-        config_path = obj['root'].mkdir('{0}.d'.format(obj['conf_type']))
+        config_path = obj['root'] / '{}.d'.format(obj['conf_type'])
         for name, config in obj['config'].items():
             config_file = config_path / '{0}.conf'.format(name)
             config_file.write(yaml.safe_dump(config, default_flow_style=False))
