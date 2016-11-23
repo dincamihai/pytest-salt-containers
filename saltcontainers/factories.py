@@ -31,7 +31,7 @@ class DockerClientFactory(factory.StubFactory):
 class SaltConfigFactory(BaseFactory):
 
     tmpdir = None
-    root = factory.LazyAttribute(lambda o: o.tmpdir.mkdir(o.factory_parent.name))
+    root = factory.LazyAttribute(lambda o: o.tmpdir.ensure_dir(o.factory_parent.name))
     conf_path = factory.LazyAttribute(
         lambda o: o.tmpdir / '{0}.conf.tar'.format(o.factory_parent.name))
     conf_type = None
@@ -68,15 +68,40 @@ class SaltConfigFactory(BaseFactory):
             config_file = config_path / '{0}.conf'.format(name)
             config_file.write(yaml.safe_dump(config, default_flow_style=False))
 
-        pillar_path = obj['root'].mkdir('pillar')
+        pillar_path = obj['root'].ensure_dir('pillar')
         for name, content in obj['pillar'].items():
             sls_file = pillar_path / '{0}.sls'.format(name)
             sls_file.write(yaml.safe_dump(content, default_flow_style=False))
 
-        sls_path = obj['root'].mkdir('sls')
+        sls_path = obj['root'].ensure_dir('sls')
         for name, source in obj['sls'].items():
             sls_file = sls_path / '{0}.sls'.format(name)
             sls_file.write(py.path.local(source).read())
+
+
+class MasterSaltConfigFactory(SaltConfigFactory):
+
+    @factory.post_generation
+    def apply_states(obj, create, extracted, **kwargs):
+        if extracted:
+            destination = 'masterless'
+            config_path = obj['root'] / 'minion.d'
+            config_path.ensure_dir()
+            (config_path / 'masterless.conf').write(
+                yaml.safe_dump(
+                    {
+                        'file_client': 'local',
+                        'file_roots': {
+                            'base': ["/etc/salt/{}".format(destination)]
+                        }
+                    },
+                    default_flow_style=False
+                )
+            )
+            sls_path = obj['root'].ensure_dir(destination)
+            for name, source in extracted.items():
+                sls_file = sls_path / '{0}.sls'.format(name)
+                sls_file.write(py.path.local(source).read())
 
 
 class ContainerConfigFactory(BaseFactory):
@@ -179,9 +204,19 @@ class SaltFactory(BaseFactory):
 class MasterFactory(SaltFactory):
     id = factory.LazyAttribute(lambda o: o.container['config']['salt_config']['id'])
     cmd = 'salt-master -d -l debug'
+    container = factory.SubFactory(
+        ContainerFactory,
+        config__salt_config=factory.SubFactory(MasterSaltConfigFactory)
+    )
 
     class Meta:
         model = MasterModel
+
+    @classmethod
+    def build(cls, **kwargs):
+        obj = super(MasterFactory, cls).build(**kwargs)
+        obj['container'].run("salt-call --local state.apply")
+        return obj
 
 
 class MinionFactory(SaltFactory):
