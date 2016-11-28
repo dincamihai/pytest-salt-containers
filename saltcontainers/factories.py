@@ -93,7 +93,8 @@ class MasterSaltConfigFactory(SaltConfigFactory):
                         'file_client': 'local',
                         'file_roots': {
                             'base': ["/etc/salt/{}".format(destination)]
-                        }
+                        },
+                        'pillar_roots': {'base': ["/etc/salt/pillar"]}
                     },
                     default_flow_style=False
                 )
