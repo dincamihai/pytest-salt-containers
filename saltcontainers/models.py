@@ -87,4 +87,4 @@ class MinionModel(dict):
         self['container'].run('pkill salt-minion')
 
     def start(self):
-        self['container'].run('salt-minion -l debug -d')
+        self['container'].run(self['cmd'])
