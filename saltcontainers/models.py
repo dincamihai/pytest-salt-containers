@@ -82,3 +82,9 @@ class MinionModel(dict):
         except ValueError:
             raise Exception(raw)
         return out['local']
+
+    def stop(self):
+        self['container'].run('pkill salt-minion')
+
+    def start(self):
+        self['container'].run(self['cmd'])
