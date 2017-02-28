@@ -1,23 +1,34 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-import docker
 from docker import Client
 from faker import Faker
 from utils import retry
-from saltcontainers.factories import (
-    ContainerFactory, MasterFactory, MinionFactory
-)
 
 
 def pytest_addoption(parser):
     parser.addini('IMAGE', help='docker image')
+    parser.addini(
+        'BASE_IMAGE', help='minimal docker image used to start bare containers')
     parser.addini('MINION_IMAGE', help='minion docker image')
     parser.addini(
         'TAGS',
         help='assign tags for this configuration',
         type='args'
     )
+    parser.addini(
+        'CLIENT', help='client used to manage containers', default='docker')
+
+
+@pytest.fixture(scope="session")
+def factories(request):
+    client = request.config.getini('CLIENT')
+    if client == 'docker':
+        import saltcontainers.factories
+        return saltcontainers.factories
+    elif client == 'nspawn':
+        import saltcontainers.factories_nspawn
+        return saltcontainers.factories_nspawn
 
 
 @pytest.fixture(scope="session")
@@ -59,7 +70,7 @@ def salt_master_config(file_root, pillar_root):
 
 
 @pytest.fixture(scope="module")
-def salt_minion_config(master_container, salt_root, docker_client):
+def salt_minion_config(master_container, salt_root):
     return {
         'master': master_container['ip'],
         'hash_type': 'sha384',
@@ -72,11 +83,10 @@ def master_container_extras():
 
 
 @pytest.fixture(scope="module")
-def master_container(request, salt_root, master_container_extras, salt_master_config, docker_client):
+def master_container(request, factories, salt_root, master_container_extras, salt_master_config):
     fake = Faker()
-    obj = ContainerFactory(
+    obj = factories.ContainerFactory(
         config__name='master_{0}_{1}'.format(fake.word(), fake.word()),
-        config__docker_client=docker_client,
         config__image=request.config.getini('IMAGE'),
         config__salt_config__tmpdir=salt_root,
         config__salt_config__conf_type='master',
@@ -94,12 +104,11 @@ def minion_container_extras():
 
 
 @pytest.fixture(scope="module")
-def minion_container(request, salt_root, minion_container_extras, salt_minion_config, docker_client):
+def minion_container(request, factories, salt_root, minion_container_extras, salt_minion_config):
     fake = Faker()
     image = request.config.getini('MINION_IMAGE') or request.config.getini('IMAGE')
-    obj = ContainerFactory(
+    obj = factories.ContainerFactory(
         config__name='minion_{0}_{1}'.format(fake.word(), fake.word()),
-        config__docker_client=docker_client,
         config__image=image,
         config__salt_config__tmpdir=salt_root,
         config__salt_config__conf_type='minion',
@@ -113,13 +122,13 @@ def minion_container(request, salt_root, minion_container_extras, salt_minion_co
 
 
 @pytest.fixture(scope="module")
-def master(request, master_container):
-    return MasterFactory(container=master_container)
+def master(request, factories, master_container):
+    return factories.MasterFactory(container=master_container)
 
 
 @pytest.fixture(scope="module")
-def minion(request, minion_container):
-    out = MinionFactory(container=minion_container)
+def minion(request, factories, minion_container):
+    out = factories.MinionFactory(container=minion_container)
     return out
 
 
@@ -149,13 +158,12 @@ def minion_key_accepted(master, minion, minion_key_cached):
     accept(master, minion)
 
 
-def default_master_args(request, docker_client, salt_root, file_root, pillar_root):
+def default_master_args(request, salt_root, file_root, pillar_root):
     fake = Faker()
     return dict(
         container__config__name='master_{0}_{1}'.format(
             fake.word(), fake.word()),
         container__config__image=request.config.getini('IMAGE'),
-        container__config__docker_client=docker_client,
         container__config__salt_config__conf_type='master',
         container__config__salt_config__tmpdir=salt_root,
         container__config__salt_config__config={
@@ -165,7 +173,7 @@ def default_master_args(request, docker_client, salt_root, file_root, pillar_roo
     )
 
 
-def default_minion_args(request, docker_client, salt_root, master_ip):
+def default_minion_args(request, salt_root, master_ip):
     fake = Faker()
     return dict(
         container__config__name='minion_{0}_{1}'.format(
@@ -173,7 +181,6 @@ def default_minion_args(request, docker_client, salt_root, master_ip):
         container__config__image=(
             request.config.getini('IMAGE') or
             request.config.getini('MINION_IMAGE')),
-        container__config__docker_client=docker_client,
         container__config__salt_config__conf_type='minion',
         container__config__salt_config__tmpdir=salt_root,
         container__config__salt_config__config={
@@ -184,17 +191,17 @@ def default_minion_args(request, docker_client, salt_root, master_ip):
 
 
 @pytest.fixture(scope='module')
-def setup(request, docker_client, module_config, salt_root, pillar_root, file_root):
-    config = dict(masters=[])
-    for master_item in module_config['masters']:
+def setup(request, factories, module_config, salt_root, pillar_root, file_root):
+    config = dict(masters=[], containers=[])
+    for master_item in module_config.get('masters', []):
 
         config_item = dict(id=None, fixture=None, minions=[])
 
         master_args = default_master_args(
-            request, docker_client, salt_root, file_root, pillar_root)
+            request, salt_root, file_root, pillar_root)
         master_args.update(master_item.get('config', {}))
 
-        master = MasterFactory(**master_args)
+        master = factories.MasterFactory(**master_args)
         request.addfinalizer(master['container'].remove)
 
         config_item['id'] = master['id']
@@ -205,10 +212,10 @@ def setup(request, docker_client, module_config, salt_root, pillar_root, file_ro
             sub_config_item = dict(id=None, fixture=None)
 
             minion_args = default_minion_args(
-                request, docker_client, salt_root, master['container']['ip'])
+                request, salt_root, master['container']['ip'])
             minion_args.update(minion_item.get('config', {}))
 
-            minion = MinionFactory(**minion_args)
+            minion = factories.MinionFactory(**minion_args)
             request.addfinalizer(minion['container'].remove)
 
             sub_config_item['id'] = minion['id']
@@ -220,5 +227,18 @@ def setup(request, docker_client, module_config, salt_root, pillar_root, file_ro
             accept(master, minion)
 
         config['masters'].append(config_item)
+
+    for item in module_config.get('containers', []):
+        config_item = dict(id=None, fixture=None)
+        container = factories.ContainerFactory(
+            config__image=request.config.getini('BASE_IMAGE'),
+            config__salt_config__tmpdir=salt_root,
+            config__salt_config=None,
+            config__volumes=None,
+            config__host_config=None)
+        config_item['id'] = container['config']['name']
+        config_item['fixture'] = container
+        request.addfinalizer(container.remove)
+        config['containers'].append(config_item)
 
     return config, module_config

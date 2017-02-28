@@ -6,6 +6,8 @@ import logging
 import tarfile
 import factory
 import factory.fuzzy
+import requests_unixsocket
+from functools import wraps
 from docker import Client
 from models import ContainerModel, MasterModel, MinionModel
 
@@ -28,17 +30,84 @@ class DockerClientFactory(factory.StubFactory):
         return Client(base_url='unix://var/run/docker.sock')
 
 
+class NspawnClient(object):
+
+    def __init__(self, base_url=None):
+        self.session = requests_unixsocket.Session()
+        self.base_url = base_url
+        # self.session.get = self.wrapper(self.session.get)
+        self.session.post = self.wrapper(self.session.post)
+        self.session.delete = self.wrapper(self.session.delete)
+
+    def wrapper(self, func):
+        @wraps(func)
+        def wrapper(path, *args, **kwargs):
+            return func(self.base_url + path, *args, **kwargs)
+        return wrapper
+
+    def start(self, machine):
+        return self.session.post('/start', data=dict(machine=machine))
+
+    def create_container(self, **params):
+        return self.session.post(
+            '/clone', data=dict(machine=params['image'], target=params['name']))
+
+    def config(self, config):
+        for source_path in config['volumes']:
+            bind = config['host_config']['binds'][source_path]
+            data = dict(
+                machine=config['name'],
+                source_path=source_path,
+                target_path=bind['bind'],
+                mode=bind['mode'])
+            self.session.post('/bind', data=data)
+
+    def stop(self, machine):
+        self.session.post('/stop', data=dict(machine=machine))
+
+    def remove(self, machine):
+        self.session.delete('/remove', data=dict(machine=machine))
+
+    def drop(self, machine):
+        self.session.post('/stop', data=dict(machine=machine))
+        time.sleep(5)
+        self.session.delete('/remove', data=dict(machine=machine))
+
+    def copy_to(self, machine, source, target):
+        return self.session.post(
+            '/copy-to',
+            data=dict(machine=machine, source=source, target=target)
+        )
+
+    def inspect_container(self, machine):
+        return self.session.post('/inspect', data=dict(machine=machine))
+
+    def create_host_config(self, **kwargs):
+        return kwargs
+
+    def put_archive(self, machine, target, data):
+        pass
+
+
+class NspawnClientFactory(factory.StubFactory):
+
+    @classmethod
+    def stub(cls, **kwargs):
+        return NspawnClient(base_url='http+unix://%2Fvar%2Frun%2Fgunicorn.sock')
+
+
 class SaltConfigFactory(BaseFactory):
 
     tmpdir = None
-    root = factory.LazyAttribute(lambda o: o.tmpdir.ensure_dir(o.factory_parent.name))
-    conf_path = factory.LazyAttribute(
-        lambda o: o.tmpdir / '{0}.conf.tar'.format(o.factory_parent.name))
+    root = factory.LazyAttribute(
+        lambda o: o.tmpdir.ensure_dir(o.factory_parent.name))
+    conf_path = factory.LazyAttribute(lambda o: o.tmpdir / '{0}.conf.tar'.format(o.factory_parent.name))
     conf_type = None
     config = {}
     pillar = {}
     sls = {}
-    id = factory.fuzzy.FuzzyText(length=5, prefix='id_', chars=string.ascii_letters)
+    id = factory.fuzzy.FuzzyText(
+        length=5, prefix='id_', chars=string.ascii_letters)
 
     @factory.post_generation
     def extra_configs(obj, create, extracted, **kwargs):
@@ -47,7 +116,8 @@ class SaltConfigFactory(BaseFactory):
             config_path.ensure_dir()
             for name, config in extracted.items():
                 config_file = config_path / '{0}.conf'.format(name)
-                config_file.write(yaml.safe_dump(config, default_flow_style=False))
+                config_file.write(
+                    yaml.safe_dump(config, default_flow_style=False))
 
     @factory.post_generation
     def post(obj, create, extracted, **kwargs):
@@ -122,11 +192,13 @@ class ContainerConfigFactory(BaseFactory):
     stdin_open = True
     working_dir = "/salt-toaster/"
     ports = [4000, 4506]
-    docker_client = None
+    client = factory.SubFactory(DockerClientFactory)
 
     @factory.lazy_attribute
     def volumes(self):
         volumes = [os.getcwd()]
+        if os.getenv('SALT_REPO'):
+            volumes.append(os.getenv('SALT_REPO'))
         return volumes
 
     @factory.lazy_attribute
@@ -140,8 +212,14 @@ class ContainerConfigFactory(BaseFactory):
                 }
             }
         )
+        salt_repo = os.getenv('SALT_REPO')
+        if salt_repo and salt_repo in self.volumes:
+            params['binds'][os.getenv('SALT_REPO')] = {
+                'bind': '/salt/src/salt-devel/',
+                'mode': 'rw'
+            }
 
-        return self.docker_client.create_host_config(**params)
+        return self.client.create_host_config(**params)
 
 
 class ContainerFactory(BaseFactory):
@@ -156,22 +234,23 @@ class ContainerFactory(BaseFactory):
     def build(cls, **kwargs):
         obj = super(ContainerFactory, cls).build(**kwargs)
         assert obj['config']['image']
-        docker_client = obj['config']['docker_client']
-        docker_client.create_container(
+        client = obj['config']['client']
+        client.create_container(
             **{
                 k: obj['config'][k] for k in obj['config'].keys()
-                if k not in ['salt_config', 'docker_client']
+                if k not in ['salt_config', 'client']
             }
         )
-        docker_client.start(obj['config']['name'])
+        client.start(obj['config']['name'])
 
-        data = docker_client.inspect_container(obj['config']['name'])
+        data = client.inspect_container(obj['config']['name'])
         obj['ip'] = data['NetworkSettings']['IPAddress']
 
         try:
+            resp = obj.run('salt --version')
             message = "{0}: {1}".format(
                 obj['config']['salt_config']['conf_type'],
-                obj.run('salt --version').strip())
+                resp.strip())
             logger.info(message)
         except TypeError:
             pass
@@ -186,7 +265,7 @@ class SaltFactory(BaseFactory):
     @classmethod
     def build(cls, **kwargs):
         obj = super(SaltFactory, cls).build(**kwargs)
-        docker_client = obj['container']['config']['docker_client']
+        client = obj['container']['config']['client']
         conf_path = obj['container']['config']['salt_config']['conf_path']
 
         with tarfile.open(conf_path.strpath, mode='w') as archive:
@@ -197,13 +276,13 @@ class SaltFactory(BaseFactory):
                     arcname=item.strpath.replace(root.strpath, '.'))
 
         with conf_path.open('rb') as f:
-            docker_client.put_archive(
+            client.put_archive(
                 obj['container']['config']['name'], '/etc/salt', f.read())
 
-        res = docker_client.exec_create(
+        res = client.exec_create(
             obj['container']['config']['name'], obj['cmd']
         )
-        output = docker_client.exec_start(res['Id'])
+        output = client.exec_start(res['Id'])
         assert 'executable file not found' not in output
         return obj
 

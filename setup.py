@@ -27,9 +27,9 @@ setup(
         'py',
         'pytest>=2.9.1',
         'docker-py==1.8.0',
-        'fake-factory',
         'factory-boy',
         'PyYAML',
+        'requests-unixsocket'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
