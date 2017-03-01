@@ -1,6 +1,7 @@
 import os
 import py
 import yaml
+import time
 import string
 import logging
 import tarfile
@@ -80,7 +81,7 @@ class NspawnClient(object):
         )
 
     def inspect_container(self, machine):
-        return self.session.post('/inspect', data=dict(machine=machine))
+        return self.session.post('/inspect', data=dict(machine=machine)).json()
 
     def create_host_config(self, **kwargs):
         return kwargs
@@ -230,6 +231,10 @@ class ContainerFactory(BaseFactory):
     class Meta:
         model = ContainerModel
 
+    @staticmethod
+    def start(config):
+        config['client'].start(config['name'])
+
     @classmethod
     def build(cls, **kwargs):
         obj = super(ContainerFactory, cls).build(**kwargs)
@@ -241,16 +246,14 @@ class ContainerFactory(BaseFactory):
                 if k not in ['salt_config', 'client']
             }
         )
-        client.start(obj['config']['name'])
-
+        cls.start(obj['config'])
         data = client.inspect_container(obj['config']['name'])
         obj['ip'] = data['NetworkSettings']['IPAddress']
 
         try:
             resp = obj.run('salt --version')
             message = "{0}: {1}".format(
-                obj['config']['salt_config']['conf_type'],
-                resp.strip())
+                obj['config']['salt_config']['conf_type'], resp.strip())
             logger.info(message)
         except TypeError:
             pass

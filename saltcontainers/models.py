@@ -60,9 +60,9 @@ class MasterModel(dict):
         return self.salt_key_raw('-a', minion_id, '-y')
 
     def salt(self, minion_id, salt_command, *args):
-        docker_command = "salt {0} {1} --output=json -l quiet".format(
+        command = "salt {0} {1} --output=json -l quiet".format(
             minion_id, salt_command, ' '.join(args))
-        data = self['container'].run(docker_command)
+        data = self['container'].run(command)
         try:
             return json.loads(data)
         except ValueError as err:
@@ -73,10 +73,10 @@ class MasterModel(dict):
 class MinionModel(dict):
 
     def salt_call(self, salt_command, *args):
-        docker_command = "salt-call {0} {1} --output=json -l quiet".format(
+        command = "salt-call {0} {1} --output=json -l quiet".format(
             salt_command, ' '.join(args)
         )
-        raw = self['container'].run(docker_command)
+        raw = self['container'].run(command)
         try:
             out = json.loads(raw)
         except ValueError:

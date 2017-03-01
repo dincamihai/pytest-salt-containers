@@ -10,63 +10,34 @@ import factory
 from faker import Faker
 from functools import wraps
 import requests_unixsocket
+from utils import retry
 from saltcontainers.factories import (
     BaseFactory,
     SaltConfigFactory,
     ContainerConfigFactory,
-    NspawnClientFactory
+    NspawnClientFactory,
+    ContainerFactory as OrigContainerFactory
 )
 from saltcontainers.models import (
-    MasterModel as OrigMasterModel,
-    MinionModel as OrigMinionModel
+    ContainerModel as OrigContainerModel,
+    MasterModel,
+    MinionModel
 )
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class MasterModel(OrigMasterModel):
+class ContainerModel(OrigContainerModel):
 
-    def salt_key_raw(self, *args):
-        command = ['salt-key']
-        command.extend(args)
-        command.append('--output=json')
-        return self['container'].run(' '.join(command))['stdoutdata']
-
-    def salt(self, minion_id, salt_command, *args):
-        command = "salt {0} {1} --output=json -l quiet".format(
-            minion_id, salt_command, ' '.join(args))
-        data = self['container'].run(command)['stdoutdata']
-        try:
-            return json.loads(data)
-        except ValueError as err:
-            raise ValueError(
-                "{0}\nIncoming data: {1}".format(err.message, data))
-
-
-class MinionModel(OrigMinionModel):
-
-    def salt_call(self, salt_command, *args):
-        command = "salt-call {0} {1} --output=json -l quiet".format(
-            salt_command, ' '.join(args)
-        )
-        raw = self['container'].run(command)['stdoutdata']
-        try:
-            out = json.loads(raw)
-        except ValueError:
-            raise Exception(raw)
-        return out['local']
-
-
-class ContainerModel(dict):
-
+    @retry()
     def run(self, command, stream=None):
         data = dict(
             machine=self['config']['name'], command=command, stream=stream)
         resp = self['config']['client'].session.post(
             '/run', stream=stream, data=data)
         if not stream:
-            return resp.json()
+            return resp.json()['stdoutdata']
         else:
             return resp.iter_lines()
 
@@ -74,37 +45,17 @@ class ContainerModel(dict):
         self['config']['client'].drop(self['config']['name'])
 
 
-class ContainerFactory(BaseFactory):
+class ContainerFactory(OrigContainerFactory):
 
     config = factory.SubFactory(ContainerConfigFactory, client=factory.SubFactory(NspawnClientFactory))
-    ip = None
 
     class Meta:
         model = ContainerModel
 
-    @classmethod
-    def build(cls, **kwargs):
-        obj = super(ContainerFactory, cls).build(**kwargs)
-        assert obj['config']['image']
-        client = obj['config']['client']
-
-        client.create_container(**obj['config'])
-        client.start(obj['config']['name'])
-        client.config(obj['config'])
-        data = client.inspect_container(obj['config']['name']).json()
-
-        obj['ip'] = data['NetworkSettings']['IPAddress']
-
-        try:
-            resp = obj.run('salt --version')
-            message = "{0}: {1}".format(
-                obj['config']['salt_config']['conf_type'],
-                resp['stdoutdata'].strip())
-            logger.info(message)
-        except TypeError:
-            pass
-
-        return obj
+    @staticmethod
+    def start(config):
+        config['client'].start(config['name'])
+        config['client'].config(config)
 
 
 class SaltFactory(BaseFactory):
