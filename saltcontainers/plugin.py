@@ -4,6 +4,7 @@ import pytest
 from docker import Client
 from faker import Faker
 from utils import retry
+from saltcontainers.factories import ContainerFactory, MasterFactory, MinionFactory
 
 
 def pytest_addoption(parser):
@@ -16,19 +17,6 @@ def pytest_addoption(parser):
         help='assign tags for this configuration',
         type='args'
     )
-    parser.addini(
-        'CLIENT', help='client used to manage containers', default='docker')
-
-
-@pytest.fixture(scope="session")
-def factories(request):
-    client = request.config.getini('CLIENT')
-    if client == 'docker':
-        import saltcontainers.factories
-        return saltcontainers.factories
-    elif client == 'nspawn':
-        import saltcontainers.factories_nspawn
-        return saltcontainers.factories_nspawn
 
 
 @pytest.fixture(scope="session")
@@ -83,9 +71,9 @@ def master_container_extras():
 
 
 @pytest.fixture(scope="module")
-def master_container(request, factories, salt_root, master_container_extras, salt_master_config):
+def master_container(request, salt_root, master_container_extras, salt_master_config):
     fake = Faker()
-    obj = factories.ContainerFactory(
+    obj = ContainerFactory(
         config__name='master_{0}_{1}'.format(fake.word(), fake.word()),
         config__image=request.config.getini('IMAGE'),
         config__salt_config__tmpdir=salt_root,
@@ -104,10 +92,10 @@ def minion_container_extras():
 
 
 @pytest.fixture(scope="module")
-def minion_container(request, factories, salt_root, minion_container_extras, salt_minion_config):
+def minion_container(request, salt_root, minion_container_extras, salt_minion_config):
     fake = Faker()
     image = request.config.getini('MINION_IMAGE') or request.config.getini('IMAGE')
-    obj = factories.ContainerFactory(
+    obj = ContainerFactory(
         config__name='minion_{0}_{1}'.format(fake.word(), fake.word()),
         config__image=image,
         config__salt_config__tmpdir=salt_root,
@@ -122,13 +110,13 @@ def minion_container(request, factories, salt_root, minion_container_extras, sal
 
 
 @pytest.fixture(scope="module")
-def master(request, factories, master_container):
-    return factories.MasterFactory(container=master_container)
+def master(request, master_container):
+    return MasterFactory(container=master_container)
 
 
 @pytest.fixture(scope="module")
-def minion(request, factories, minion_container):
-    out = factories.MinionFactory(container=minion_container)
+def minion(request, minion_container):
+    out = MinionFactory(container=minion_container)
     return out
 
 
@@ -191,7 +179,7 @@ def default_minion_args(request, salt_root, master_ip):
 
 
 @pytest.fixture(scope='module')
-def setup(request, factories, module_config, salt_root, pillar_root, file_root):
+def setup(request, module_config, salt_root, pillar_root, file_root):
     config = dict(masters=[], containers=[])
     for master_item in module_config.get('masters', []):
 
@@ -201,7 +189,7 @@ def setup(request, factories, module_config, salt_root, pillar_root, file_root):
             request, salt_root, file_root, pillar_root)
         master_args.update(master_item.get('config', {}))
 
-        master = factories.MasterFactory(**master_args)
+        master = MasterFactory(**master_args)
         request.addfinalizer(master['container'].remove)
 
         config_item['id'] = master['id']
@@ -215,7 +203,7 @@ def setup(request, factories, module_config, salt_root, pillar_root, file_root):
                 request, salt_root, master['container']['ip'])
             minion_args.update(minion_item.get('config', {}))
 
-            minion = factories.MinionFactory(**minion_args)
+            minion = MinionFactory(**minion_args)
             request.addfinalizer(minion['container'].remove)
 
             sub_config_item['id'] = minion['id']
@@ -230,7 +218,7 @@ def setup(request, factories, module_config, salt_root, pillar_root, file_root):
 
     for item in module_config.get('containers', []):
         config_item = dict(id=None, fixture=None)
-        container = factories.ContainerFactory(
+        container = ContainerFactory(
             config__image=request.config.getini('BASE_IMAGE'),
             config__salt_config__tmpdir=salt_root,
             config__salt_config=None,

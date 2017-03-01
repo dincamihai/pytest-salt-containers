@@ -8,10 +8,9 @@ pytestmark = pytest.mark.usefixtures('config')
 def config(testdir):
     testdir.makeini("""
         [pytest]
-        IMAGE = master
+        IMAGE = registry.mgr.suse.de/toaster-sles12sp1-products
         MINION_IMAGE = minion
         TAGS = #sometag #some-other-tag
-        CLIENT = nspawn
     """)
 
 
@@ -132,6 +131,14 @@ def test_nspawn_minion_key_accepted(testdir):
 
 def test_nspawn_minion_ping(testdir):
     testdir.makepyfile("""
+        import pytest
+
+
+        @pytest.fixture(scope="module")
+        def minion_container_extras():
+            return dict(type='nspawn')
+
+
         def test_sth(master, minion, minion_key_accepted):
             assert master.salt(minion['id'], "test.ping")[minion['id']] is True
     """)

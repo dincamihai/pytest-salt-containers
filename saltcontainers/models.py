@@ -36,13 +36,7 @@ class ContainerModel(dict):
         )
 
     def remove(self):
-        name = self['config']['name']
-        proc = subprocess.Popen('docker rm -f {0} > /dev/null'.format(name), shell=True)
-        out, err = proc.communicate()
-        if proc.returncode:
-            logger.error(err)
-        else:
-            logger.debug(out)
+        self['config']['client'].drop(self['config']['name'])
 
 
 class MasterModel(dict):
