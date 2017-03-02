@@ -8,7 +8,7 @@ pytestmark = pytest.mark.usefixtures('config')
 def config(testdir):
     testdir.makeini("""
         [pytest]
-        IMAGE = registry.mgr.suse.de/toaster-sles12sp1-products
+        IMAGE = master
         MINION_IMAGE = minion
         TAGS = #sometag #some-other-tag
     """)
@@ -136,6 +136,11 @@ def test_nspawn_minion_ping(testdir):
 
         @pytest.fixture(scope="module")
         def minion_container_extras():
+            return dict(type='nspawn')
+
+
+        @pytest.fixture(scope="module")
+        def master_container_extras():
             return dict(type='nspawn')
 
 

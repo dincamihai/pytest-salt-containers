@@ -1,10 +1,14 @@
-import uuid
 import time
 import subprocess
 import tarfile
+import logging
 import requests_unixsocket
 from functools import wraps
 from docker import Client
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class DockerClient(Client):
@@ -12,6 +16,10 @@ class DockerClient(Client):
 
     def start(self, config):
         return super(DockerClient, self).start(config['name'])
+
+    def run(self, name, command, stream=None):
+        cmd_exec = self.exec_create(name, cmd=command)
+        return self.exec_start(cmd_exec['Id'], stream=stream)
 
     def drop(self, name):
         proc = subprocess.Popen(
@@ -37,8 +45,6 @@ class DockerClient(Client):
 
 
 class NspawnClient(object):
-
-    executables = dict()
 
     def __init__(self, base_url=None):
         self.session = requests_unixsocket.Session()
@@ -85,7 +91,7 @@ class NspawnClient(object):
     def configure_salt(self, config):
         root = config['salt_config']['root']
         for item in root.listdir():
-            client.copy_to(
+            config['client'].copy_to(
                 config['name'],
                 item.strpath,
                 item.strpath.replace(root.strpath, '/etc/salt'))
@@ -93,8 +99,7 @@ class NspawnClient(object):
     def copy_to(self, machine, source, target):
         return self.session.post(
             '/copy-to',
-            data=dict(machine=machine, source=source, target=target)
-        )
+            data=dict(machine=machine, source=source, target=target))
 
     def inspect_container(self, machine):
         return self.session.post('/inspect', data=dict(machine=machine)).json()
@@ -102,15 +107,11 @@ class NspawnClient(object):
     def create_host_config(self, **kwargs):
         return kwargs
 
-    def exec_create(self, name, command):
-        exec_id = uuid.uuid4()
-        self.executables[exec_id] = dict(
-            machine=self['config']['name'], command=command, stream=stream)
-        return {'Id': exec_id}
-
-    def exec_start(self, id, stream=None):
-        resp = self['config']['client'].session.post(
-            '/run', stream=stream, data=self.executables[id])
+    def run(self, name, command, stream=False):
+        resp = self.session.post(
+            '/run',
+            stream=stream,
+            data=dict(machine=name, command=command, stream=stream))
         if not stream:
             return resp.json()['stdoutdata']
         else:

@@ -12,10 +12,8 @@ class ContainerModel(dict):
 
     @retry()
     def run(self, command, stream=False):
-        cmd_exec = self['config']['client'].exec_create(
-            self['config']['name'], cmd=command)
-        output = self['config']['client'].exec_start(cmd_exec['Id'], stream=stream)
-        return output
+        return self['config']['client'].run(
+            self['config']['name'], command, stream=stream)
 
     def get_suse_release(self):
         info = dict()

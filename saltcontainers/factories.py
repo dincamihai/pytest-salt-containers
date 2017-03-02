@@ -198,10 +198,9 @@ class SaltFactory(BaseFactory):
 
         client.configure_salt(obj['container']['config'])
 
-        res = client.exec_create(
+        output = client.run(
             obj['container']['config']['name'], obj['cmd']
         )
-        output = client.exec_start(res['Id'])
         assert 'executable file not found' not in output
         return obj
 
