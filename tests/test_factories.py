@@ -14,11 +14,6 @@ def config(testdir):
     """)
 
 
-@pytest.fixture(scope="module")
-def salt_master_config(file_root, pillar_root):
-    return {'this': {'is': {'my': ['config']}}}
-
-
 def test_configuration(testdir):
     testdir.makepyfile("""
         def test_sth(request):
@@ -35,10 +30,18 @@ def test_configuration(testdir):
 def test_config_without_volume_mounting(testdir):
     testdir.makepyfile("""
         import os
+        import yaml
+        import pytest
 
 
-        def test_sth(master):
+        @pytest.fixture(scope="module")
+        def salt_master_config(file_root, pillar_root):
+            return {'this': {'is': {'my': ['config']}}}
+
+
+        def test_sth(master, salt_master_config):
             output = master['container'].run('cat /etc/salt/master.d/this.conf')
+            assert salt_master_config['this'] == yaml.load(output)
             assert master['container']['config']['volumes'] == [os.getcwd()]
     """)
 
@@ -53,7 +56,8 @@ def test_container_config_image(testdir):
 
 
         def test_sth():
-            config = ContainerConfigFactory(salt_config=None, host_config=None)
+            config = ContainerConfigFactory(
+                salt_config=None, host_config=None, client=None)
             assert config['image'] is None
     """)
 
@@ -70,7 +74,7 @@ def test_container_config__host_config(testdir):
 
         def test_sth():
             config = ContainerConfigFactory(
-                salt_config=None, docker_client=MagicMock())
+                salt_config=None, client=MagicMock())
             assert config['host_config']
     """)
 
@@ -99,8 +103,10 @@ def test_container_config__salt_config__sls(testdir):
         def test_sth(docker_client, salt_root, file_root):
             config = ContainerConfigFactory(
                 name='container-test',
-                docker_client=docker_client,
+                client=None,
+                host_config=None,
                 salt_config__tmpdir=salt_root,
+                salt_config__conf_type='master',
                 salt_config__sls={
                     'top': 'top.sls',
                     'latest': 'latest.sls'

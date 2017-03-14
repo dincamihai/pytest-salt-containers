@@ -122,7 +122,7 @@ class ContainerConfigFactory(BaseFactory):
         if self.factory_parent.type == 'docker':
             return DockerClient(base_url='unix://var/run/docker.sock')
         elif self.factory_parent.type == 'nspawn':
-            return NspawnClient(base_url='http+unix://%2Fvar%2Frun%2Fgunicorn.sock')
+            return NspawnClient('http+unix:///var/run/gunicorn.sock')
 
     @factory.lazy_attribute
     def volumes(self):
@@ -173,8 +173,7 @@ class ContainerFactory(BaseFactory):
             }
         )
         obj['config']['client'].start(obj['config'])
-        data = client.inspect_container(obj['config']['name'])
-        obj['ip'] = data['NetworkSettings']['IPAddress']
+        obj['ip'] = obj['config']['client'].getip(obj['config']['name'])
 
         try:
             resp = obj.run('salt --version')
@@ -185,6 +184,11 @@ class ContainerFactory(BaseFactory):
             pass
 
         return obj
+
+    @factory.post_generation
+    def ip(self, create, extracted, **kwargs):
+        if not create:
+            return extracted
 
 
 class SaltFactory(BaseFactory):

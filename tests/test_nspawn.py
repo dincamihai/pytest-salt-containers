@@ -16,23 +16,22 @@ def config(testdir):
 
 def test_nspawn_container(testdir):
     testdir.makepyfile("""
+        import pytest
         from functools import partial
-        from faker import Faker
-        from saltcontainers.factories_nspawn import ContainerFactory
+        from saltcontainers.factories import ContainerFactory
 
 
-        def test_sth(request, salt_root, salt_master_config, master_container_extras):
-            name = 'test'
-            fake = Faker()
+        def test_sth(request, salt_root, salt_master_config):
             container = ContainerFactory(
-                config__name=name,
+                type='nspawn',
                 config__image=request.config.getini('IMAGE'),
                 config__salt_config__tmpdir=salt_root,
                 config__salt_config__conf_type='master',
-                config__salt_config__config=salt_master_config,
-                config__salt_config__post__id='{0}_{1}'.format(fake.word(), fake.word()),
-                **master_container_extras)
-            request.addfinalizer(partial(container['config']['client'].stop, name))
+                config__salt_config__config=salt_master_config)
+            request.addfinalizer(
+                partial(
+                    container['config']['client'].stop,
+                    container['config']['name']))
     """)
 
     result = testdir.runpytest('-v')
@@ -42,6 +41,14 @@ def test_nspawn_container(testdir):
 
 def test_nspawn_master_container(testdir):
     testdir.makepyfile("""
+        import pytest
+
+
+        @pytest.fixture(scope="module")
+        def master_container_extras():
+            return dict(type='nspawn')
+
+
         def test_sth(master_container):
             assert master_container['ip']
     """)
@@ -53,6 +60,14 @@ def test_nspawn_master_container(testdir):
 
 def test_nspawn_master(testdir):
     testdir.makepyfile("""
+        import pytest
+
+
+        @pytest.fixture(scope="module")
+        def master_container_extras():
+            return dict(type='nspawn')
+
+
         def test_sth(master):
             assert master['container']['ip']
     """)
@@ -64,6 +79,14 @@ def test_nspawn_master(testdir):
 
 def test_nspawn_minion_container(testdir):
     testdir.makepyfile("""
+        import pytest
+
+
+        @pytest.fixture(scope="module")
+        def minion_container_extras():
+            return dict(type='nspawn')
+
+
         def test_sth(minion_container):
             assert minion_container['ip']
     """)
@@ -75,6 +98,19 @@ def test_nspawn_minion_container(testdir):
 
 def test_nspawn_minion(testdir):
     testdir.makepyfile("""
+        import pytest
+
+
+        @pytest.fixture(scope="module")
+        def master_container_extras():
+            return dict(type='nspawn')
+
+
+        @pytest.fixture(scope="module")
+        def minion_container_extras():
+            return dict(type='nspawn')
+
+
         def test_sth(minion):
             assert minion['container']['ip']
     """)
@@ -86,6 +122,14 @@ def test_nspawn_minion(testdir):
 
 def test_nspawn_master_run_stream(testdir):
     testdir.makepyfile("""
+        import pytest
+
+
+        @pytest.fixture(scope="module")
+        def master_container_extras():
+            return dict(type='nspawn')
+
+
         def test_sth(master):
             for item in master['container'].run('cat /etc/os-release', stream=True):
                 if 'VERSION="12-SP2"' in item:
@@ -102,10 +146,21 @@ def test_nspawn_master_run_stream(testdir):
 def test_nspawn_minion_key_cached(testdir):
     testdir.makepyfile("""
         import json
+        import pytest
+
+
+        @pytest.fixture(scope="module")
+        def master_container_extras():
+            return dict(type='nspawn')
+
+
+        @pytest.fixture(scope="module")
+        def minion_container_extras():
+            return dict(type='nspawn')
+
 
         def test_sth(master, minion, minion_key_cached):
-            keys = json.loads(
-                master['container'].run('salt-key -L')['stdoutdata'])
+            keys = json.loads(master['container'].run('salt-key -L'))
             assert minion['id'] in keys['Unaccepted Keys']
     """)
 
@@ -117,10 +172,21 @@ def test_nspawn_minion_key_cached(testdir):
 def test_nspawn_minion_key_accepted(testdir):
     testdir.makepyfile("""
         import json
+        import pytest
+
+
+        @pytest.fixture(scope="module")
+        def master_container_extras():
+            return dict(type='nspawn')
+
+
+        @pytest.fixture(scope="module")
+        def minion_container_extras():
+            return dict(type='nspawn')
+
 
         def test_sth(master, minion, minion_key_accepted):
-            keys = json.loads(
-                master['container'].run('salt-key -L')['stdoutdata'])
+            keys = json.loads(master['container'].run('salt-key -L'))
             assert minion['id'] in keys['Accepted Keys']
     """)
 
@@ -135,12 +201,12 @@ def test_nspawn_minion_ping(testdir):
 
 
         @pytest.fixture(scope="module")
-        def minion_container_extras():
+        def master_container_extras():
             return dict(type='nspawn')
 
 
         @pytest.fixture(scope="module")
-        def master_container_extras():
+        def minion_container_extras():
             return dict(type='nspawn')
 
 

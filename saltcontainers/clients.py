@@ -1,4 +1,5 @@
 import time
+import urllib
 import subprocess
 import tarfile
 import logging
@@ -43,12 +44,20 @@ class DockerClient(Client):
         with conf_path.open('rb') as f:
             self.put_archive(config['name'], '/etc/salt', f.read())
 
+    def getip(self, machine):
+        data = self.inspect_container(machine)
+        return data['NetworkSettings']['IPAddress']
+
 
 class NspawnClient(object):
 
-    def __init__(self, base_url=None):
+    def __init__(self, base_url):
         self.session = requests_unixsocket.Session()
-        self.base_url = base_url
+        if base_url.startswith("http+unix"):
+            self.base_url = "http+unix://{0}".format(
+                urllib.quote_plus(base_url.replace('http+unix://', '')))
+        else:
+            self.base_url = base_url
         # self.session.get = self.wrapper(self.session.get)
         self.session.post = self.wrapper(self.session.post)
         self.session.delete = self.wrapper(self.session.delete)
@@ -56,7 +65,9 @@ class NspawnClient(object):
     def wrapper(self, func):
         @wraps(func)
         def wrapper(path, *args, **kwargs):
-            return func(self.base_url + path, *args, **kwargs)
+            resp = func(self.base_url + path, *args, **kwargs)
+            resp.raise_for_status()
+            return resp
         return wrapper
 
     def start(self, config):
@@ -101,8 +112,10 @@ class NspawnClient(object):
             '/copy-to',
             data=dict(machine=machine, source=source, target=target))
 
-    def inspect_container(self, machine):
-        return self.session.post('/inspect', data=dict(machine=machine)).json()
+    def getip(self, machine):
+        data = self.session.post(
+            '/inspect', data=dict(machine=machine, interface='host0')).json()
+        return data['NetworkSettings']['IPAddress']
 
     def create_host_config(self, **kwargs):
         return kwargs
