@@ -105,6 +105,19 @@ class MasterSaltConfigFactory(SaltConfigFactory):
             roster.write(yaml.safe_dump(extracted, default_flow_style=False))
 
 
+class SyndicSaltConfigFactory(MasterSaltConfigFactory):
+
+    @factory.post_generation
+    def syndic_id(obj, create, extracted, **kwargs):
+        config_path = obj['root'] / 'minion.d'
+        config_path.ensure_dir()
+        config_file = obj['root'] / 'minion'
+        main_config = {'include': 'minion.d/*'}
+        main_config['id'] = obj['id']
+        config_file.write(
+            yaml.safe_dump(main_config, default_flow_style=False))
+
+
 class ContainerConfigFactory(BaseFactory):
     name = factory.fuzzy.FuzzyText(
         length=5, prefix='container_', chars=string.ascii_letters)
@@ -236,6 +249,25 @@ class MasterFactory(SaltFactory):
     def build(cls, **kwargs):
         obj = super(MasterFactory, cls).build(**kwargs)
         obj['container'].run("salt-call --local state.apply")
+        return obj
+
+
+class SyndicFactory(MasterFactory):
+
+    container = factory.SubFactory(
+        ContainerFactory,
+        config__salt_config=factory.SubFactory(SyndicSaltConfigFactory)
+    )
+
+    @classmethod
+    def build(cls, **kwargs):
+        obj = super(SyndicFactory, cls).build(**kwargs)
+        cmd = 'salt-syndic -d -l debug'
+        docker_client = obj['container']['config']['docker_client']
+        res = docker_client.exec_create(
+            obj['container']['config']['name'], cmd)
+        output = docker_client.exec_start(res['Id'])
+        assert 'executable file not found' not in output
         return obj
 
 
