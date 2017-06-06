@@ -6,7 +6,7 @@ from docker import Client
 from faker import Faker
 from utils import retry
 from saltcontainers.factories import (
-    ContainerFactory, MasterFactory, MinionFactory
+    ContainerFactory, MasterFactory, SyndicFactory, MinionFactory
 )
 
 
@@ -149,20 +149,27 @@ def minion_key_accepted(master, minion, minion_key_cached):
     accept(master, minion)
 
 
-def default_master_args(request, docker_client, salt_root, file_root, pillar_root):
+def default_master_args(request, docker_client, salt_root, file_root, pillar_root, is_syndic=False, master=None):
     fake = Faker()
-    return dict(
-        container__config__name='master_{0}_{1}'.format(
-            fake.word(), fake.word()),
+
+    base_config = {
+        'pillar_roots': {'base': [pillar_root]},
+        'file_roots': {'base': [file_root]}
+    }
+    if is_syndic and master:
+        base_config['syndic_master'] = master['container']['ip']
+
+    args = dict(
+        container__config__name='{0}_{1}_{2}'.format(
+            'syndic' if is_syndic else 'master', fake.word(), fake.word()),
         container__config__image=request.config.getini('IMAGE'),
         container__config__docker_client=docker_client,
         container__config__salt_config__conf_type='master',
         container__config__salt_config__tmpdir=salt_root,
-        container__config__salt_config__config={
-            'base_config': {
-                'pillar_roots': {'base': [pillar_root]},
-                'file_roots': {'base': [file_root]}}},
+        container__config__salt_config__config={'base_config': base_config}
     )
+
+    return args
 
 
 def default_minion_args(request, docker_client, salt_root, master_ip):
@@ -182,43 +189,79 @@ def default_minion_args(request, docker_client, salt_root, master_ip):
     )
 
 
+def setup_minion(request, docker_client, salt_root, master, minion_item):
+    sub_config_item = dict(id=None, fixture=None)
+
+    minion_args = default_minion_args(
+        request, docker_client, salt_root, master['container']['ip'])
+    minion_args.update(minion_item.get('config', {}))
+
+    minion = MinionFactory(**minion_args)
+    request.addfinalizer(minion['container'].remove)
+
+    sub_config_item['id'] = minion['id']
+    sub_config_item['fixture'] = minion
+
+    wait_cached(master, minion)
+    accept(master, minion)
+
+    yield sub_config_item
+
+
+def setup_master(request, docker_client, salt_root, file_root, pillar_root, master_item, is_syndic=False, master=None):
+    config_item = dict(id=None, fixture=None, syndics=[], minions=[])
+
+    master_args = default_master_args(
+        request,
+        docker_client,
+        salt_root,
+        file_root,
+        pillar_root,
+        is_syndic,
+        master)
+
+    master_args.update(master_item.get('config', {}))
+    Factory = MasterFactory if not is_syndic else SyndicFactory
+    obj = Factory(**master_args)
+    request.addfinalizer(obj['container'].remove)
+
+    config_item['id'] = obj['id']
+    config_item['fixture'] = obj
+
+    for syndic_item in master_item.get('syndics', []):
+        sub_config_item = setup_master(
+            request,
+            docker_client,
+            salt_root,
+            file_root,
+            pillar_root,
+            syndic_item,
+            is_syndic=True,
+            master=obj)
+        config_item['syndics'].append(sub_config_item.next())
+
+    for minion_item in master_item.get('minions', []):
+        sub_config_item = setup_minion(
+            request,
+            docker_client,
+            salt_root,
+            obj,
+            minion_item)
+        config_item['minions'].append(sub_config_item.next())
+
+    if is_syndic:
+        wait_cached(master, obj)
+        accept(master, obj)
+
+    yield config_item
+
 
 @pytest.fixture(scope='module')
 def setup(request, docker_client, module_config, salt_root, pillar_root, file_root):
     config = dict(masters=[])
     for master_item in module_config['masters']:
-
-        config_item = dict(id=None, fixture=None, minions=[])
-
-        master_args = default_master_args(
-            request, docker_client, salt_root, file_root, pillar_root)
-        master_args.update(master_item.get('config', {}))
-
-        master = MasterFactory(**master_args)
-        request.addfinalizer(master['container'].remove)
-
-        config_item['id'] = master['id']
-        config_item['fixture'] = master
-
-        for minion_item in master_item.get('minions', []):
-
-            sub_config_item = dict(id=None, fixture=None)
-
-            minion_args = default_minion_args(
-                request, docker_client, salt_root, master['container']['ip'])
-            minion_args.update(minion_item.get('config', {}))
-
-            minion = MinionFactory(**minion_args)
-            request.addfinalizer(minion['container'].remove)
-
-            sub_config_item['id'] = minion['id']
-            sub_config_item['fixture'] = minion
-
-            config_item['minions'].append(sub_config_item)
-
-            wait_cached(master, minion)
-            accept(master, minion)
-
-        config['masters'].append(config_item)
-
+        config_item = setup_master(
+            request, docker_client, salt_root, file_root, pillar_root, master_item
+        )
+        config['masters'].append(config_item.next())
     return config, module_config
