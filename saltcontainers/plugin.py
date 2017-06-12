@@ -202,10 +202,10 @@ def setup_minion(request, docker_client, salt_root, master, minion_item):
     wait_cached(master, minion)
     accept(master, minion)
 
-    yield sub_config_item
+    return sub_config_item
 
 
-def setup_master(request, docker_client, salt_root, file_root, pillar_root, master_item, is_syndic=False, master=None):
+def setup_master(request, docker_client, salt_root, file_root, pillar_root, item, is_syndic=False, master=None):
     config_item = dict(id=None, fixture=None, syndics=[], minions=[])
 
     master_args = default_master_args(
@@ -217,7 +217,7 @@ def setup_master(request, docker_client, salt_root, file_root, pillar_root, mast
         is_syndic,
         master)
 
-    master_args.update(master_item.get('config', {}))
+    master_args.update(item.get('config', {}))
     Factory = MasterFactory if not is_syndic else SyndicFactory
     obj = Factory(**master_args)
     request.addfinalizer(obj['container'].remove)
@@ -225,7 +225,7 @@ def setup_master(request, docker_client, salt_root, file_root, pillar_root, mast
     config_item['id'] = obj['id']
     config_item['fixture'] = obj
 
-    for syndic_item in master_item.get('syndics', []):
+    for syndic_item in item.get('syndics', []):
         sub_config_item = setup_master(
             request,
             docker_client,
@@ -235,33 +235,36 @@ def setup_master(request, docker_client, salt_root, file_root, pillar_root, mast
             syndic_item,
             is_syndic=True,
             master=obj)
-        config_item['syndics'].append(sub_config_item.next())
+        config_item['syndics'].append(sub_config_item)
+        syndic_item.update(sub_config_item)
 
-    for minion_item in master_item.get('minions', []):
+    for minion_item in item.get('minions', []):
         sub_config_item = setup_minion(
             request,
             docker_client,
             salt_root,
             obj,
             minion_item)
-        config_item['minions'].append(sub_config_item.next())
+        config_item['minions'].append(sub_config_item)
+        minion_item.update(sub_config_item)
 
     if is_syndic:
         wait_cached(master, obj)
         accept(master, obj)
 
-    yield config_item
+    return config_item
 
 
 
 @pytest.fixture(scope='module')
 def setup(request, module_config, salt_root, pillar_root, file_root):
     config = dict(masters=[])
-    for master_item in module_config['masters']:
+    for item in module_config['masters']:
         config_item = setup_master(
-            request, docker_client, salt_root, file_root, pillar_root, master_item
+            request, docker_client, salt_root, file_root, pillar_root, item
         )
-        config['masters'].append(config_item.next())
+        config['masters'].append(config_item)
+        item.update(config_item)
 
     for item in module_config.get('containers', []):
         config_item = dict(id=None, fixture=None)
