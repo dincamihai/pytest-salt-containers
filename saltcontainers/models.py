@@ -33,9 +33,6 @@ class ContainerModel(dict):
             )
         )
 
-    def remove(self):
-        self['config']['client'].drop(self['config']['name'])
-
     def connect(self):
         for item in self['config']['networking_config']['EndpointsConfig'].keys():
             self['config']['client'].connect_container_to_network(self['config']['name'], item)
@@ -43,6 +40,11 @@ class ContainerModel(dict):
     def disconnect(self):
         for item in self['config']['networking_config']['EndpointsConfig'].keys():
             self['config']['client'].disconnect_container_from_network(self['config']['name'], item)
+
+    def remove(self):
+        self['config']['docker_client'].stop(self['config']['name'])
+        self['config']['docker_client'].remove_container(
+            self['config']['name'], v=True)
 
 
 class MasterModel(dict):
