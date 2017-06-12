@@ -140,8 +140,8 @@ class ContainerConfigFactory(BaseFactory):
     @factory.lazy_attribute
     def volumes(self):
         volumes = [os.getcwd()]
-        if os.getenv('SALT_REPO'):
-            volumes.append(os.getenv('SALT_REPO'))
+        if os.environ.get('FLAVOR') == 'devel' and os.environ.get('SALT_REPO'):
+            volumes.append(os.environ['SALT_REPO'])
         return volumes
 
     @factory.lazy_attribute
@@ -155,13 +155,11 @@ class ContainerConfigFactory(BaseFactory):
                 }
             }
         )
-        salt_repo = os.getenv('SALT_REPO')
-        if salt_repo and salt_repo in self.volumes:
-            params['binds'][os.getenv('SALT_REPO')] = {
-                'bind': '/salt/src/salt-devel/',
+        if os.environ.get('SALT_REPO') in self.volumes:
+            params['binds'][os.environ['SALT_REPO']] = {
+                'bind': '/salt/src/salt-devel',
                 'mode': 'rw'
             }
-
         return self.client.create_host_config(**params)
 
     @factory.post_generation
