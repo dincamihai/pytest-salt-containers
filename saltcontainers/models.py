@@ -65,6 +65,16 @@ class MasterModel(dict):
             raise ValueError(
                 "{0}\nIncoming data: {1}".format(err.message, data))
 
+    def salt_run(self, command, *args):
+        docker_command = "salt-run {0} {1} --output=json -l quiet".format(
+            command, ' '.join(args))
+        data = self['container'].run(docker_command)
+        try:
+            return json.loads(data)
+        except ValueError as err:
+            raise ValueError(
+                "{0}\nIncoming data: {1}".format(err.message, data))
+
 
 class MinionModel(dict):
 
