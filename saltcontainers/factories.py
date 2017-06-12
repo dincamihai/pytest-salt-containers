@@ -140,6 +140,8 @@ class ContainerConfigFactory(BaseFactory):
     @factory.lazy_attribute
     def volumes(self):
         volumes = [os.getcwd()]
+        if os.environ.get('FLAVOR') == 'devel' and os.environ.get('SALT_REPO'):
+            volumes.append(os.environ['SALT_REPO'])
         return volumes
 
     @factory.lazy_attribute
@@ -153,6 +155,8 @@ class ContainerConfigFactory(BaseFactory):
                 }
             }
         )
+        if os.environ.get('SALT_REPO') in self.volumes:
+            params['binds'][os.environ['SALT_REPO']] = '/salt/src/salt-devel'
 
         return self.docker_client.create_host_config(**params)
 
