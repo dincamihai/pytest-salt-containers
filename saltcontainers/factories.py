@@ -151,12 +151,24 @@ class ContainerConfigFactory(BaseFactory):
 
         return self.client.create_host_config(**params)
 
+    @factory.post_generation
+    def networking_config(self, create, extracted, **kwargs):
+        if not self['client'].networks(names=[extracted['name']]):
+            self['client'].create_network(**extracted)
+
+        self['networking_config'] = self['client'].create_networking_config({
+            extracted['name']: self['client'].create_endpoint_config()
+        })
+
 
 class ContainerFactory(BaseFactory):
 
-    config = factory.SubFactory(ContainerConfigFactory)
     ip = None
     type = 'docker'
+    config = factory.SubFactory(
+        ContainerConfigFactory,
+        networking_config=dict(name="network1", driver="bridge")
+    )
 
     class Meta:
         model = ContainerModel

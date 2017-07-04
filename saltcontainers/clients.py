@@ -45,8 +45,7 @@ class DockerClient(Client):
             self.put_archive(config['name'], '/etc/salt', f.read())
 
     def getip(self, machine):
-        data = self.inspect_container(machine)
-        return data['NetworkSettings']['IPAddress']
+        return self.inspect_container(machine)['NetworkSettings']['Networks'].popitem()[1]['IPAddress']
 
 
 class NspawnClient(object):
