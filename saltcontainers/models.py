@@ -42,8 +42,8 @@ class ContainerModel(dict):
             self['config']['client'].disconnect_container_from_network(self['config']['name'], item)
 
     def remove(self):
-        self['config']['docker_client'].stop(self['config']['name'])
-        self['config']['docker_client'].remove_container(
+        self['config']['client'].stop(self['config']['name'])
+        self['config']['client'].remove_container(
             self['config']['name'], v=True)
 
 

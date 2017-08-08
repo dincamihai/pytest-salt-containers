@@ -186,11 +186,11 @@ def default_minion_args(request, salt_root, master_ip):
     )
 
 
-def setup_minion(request, docker_client, salt_root, master, minion_item):
+def setup_minion(request, salt_root, master, minion_item):
     sub_config_item = dict(id=None, fixture=None)
 
     minion_args = default_minion_args(
-        request, docker_client, salt_root, master['container']['ip'])
+        request, salt_root, master['container']['ip'])
     minion_args.update(minion_item.get('config', {}))
 
     minion = MinionFactory(**minion_args)
@@ -205,12 +205,11 @@ def setup_minion(request, docker_client, salt_root, master, minion_item):
     return sub_config_item
 
 
-def setup_master(request, docker_client, salt_root, file_root, pillar_root, item, is_syndic=False, master=None):
+def setup_master(request, salt_root, file_root, pillar_root, item, is_syndic=False, master=None):
     config_item = dict(id=None, fixture=None, syndics=[], minions=[])
 
     master_args = default_master_args(
         request,
-        docker_client,
         salt_root,
         file_root,
         pillar_root,
@@ -228,7 +227,6 @@ def setup_master(request, docker_client, salt_root, file_root, pillar_root, item
     for syndic_item in item.get('syndics', []):
         sub_config_item = setup_master(
             request,
-            docker_client,
             salt_root,
             file_root,
             pillar_root,
@@ -241,7 +239,6 @@ def setup_master(request, docker_client, salt_root, file_root, pillar_root, item
     for minion_item in item.get('minions', []):
         sub_config_item = setup_minion(
             request,
-            docker_client,
             salt_root,
             obj,
             minion_item)
@@ -255,13 +252,12 @@ def setup_master(request, docker_client, salt_root, file_root, pillar_root, item
     return config_item
 
 
-
 @pytest.fixture(scope='module')
 def setup(request, module_config, salt_root, pillar_root, file_root):
     config = dict(masters=[])
     for item in module_config['masters']:
         config_item = setup_master(
-            request, docker_client, salt_root, file_root, pillar_root, item
+            request, salt_root, file_root, pillar_root, item
         )
         config['masters'].append(config_item)
         item.update(config_item)

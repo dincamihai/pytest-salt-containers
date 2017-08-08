@@ -261,10 +261,8 @@ class SyndicFactory(MasterFactory):
     def build(cls, **kwargs):
         obj = super(SyndicFactory, cls).build(**kwargs)
         cmd = 'salt-syndic -d -l debug'
-        docker_client = obj['container']['config']['docker_client']
-        res = docker_client.exec_create(
-            obj['container']['config']['name'], cmd)
-        output = docker_client.exec_start(res['Id'])
+        client = obj['container']['config']['client']
+        output = client.run(obj['container']['config']['name'], cmd)
         assert 'executable file not found' not in output
         return obj
 
