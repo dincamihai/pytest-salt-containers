@@ -23,7 +23,7 @@ def pytest_addoption(parser):
 
 @pytest.fixture(scope="session")
 def docker_client():
-    client = Client(base_url='unix://var/run/docker.sock')
+    client = Client(base_url='unix://var/run/docker.sock', timeout=120)
     return client
 
 

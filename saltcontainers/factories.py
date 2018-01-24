@@ -133,7 +133,7 @@ class ContainerConfigFactory(BaseFactory):
     @factory.lazy_attribute
     def client(self):
         if self.factory_parent.type == 'docker':
-            return DockerClient(base_url='unix://var/run/docker.sock')
+            return DockerClient(base_url='unix://var/run/docker.sock', timeout=120)
         elif self.factory_parent.type == 'nspawn':
             return NspawnClient('http+unix:///var/run/gunicorn.sock')
 
