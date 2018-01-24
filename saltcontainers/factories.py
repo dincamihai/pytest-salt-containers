@@ -70,7 +70,7 @@ class SaltConfigFactory(BaseFactory):
         sls_path = obj['root'].ensure_dir('sls')
         for name, source in obj['sls'].items():
             sls_file = sls_path / '{0}.sls'.format(name)
-            sls_file.write(py.path.local(source).read())
+            sls_file.write_text(py.path.local(source).read().decode('utf8'), 'utf8')
 
 
 class MasterSaltConfigFactory(SaltConfigFactory):
@@ -96,9 +96,10 @@ class MasterSaltConfigFactory(SaltConfigFactory):
                 )
             )
             sls_path = obj['root'].ensure_dir(destination)
-            for name, source in extracted.items():
-                sls_file = sls_path / '{0}.sls'.format(name)
-                sls_file.write(py.path.local(source).read())
+            for item in extracted:
+                source = py.path.local(item)
+                sls_file = sls_path / '{0}'.format(source.basename)
+                sls_file.write_text(source.read().decode('utf8'), 'utf8')
 
 
 class SyndicSaltConfigFactory(MasterSaltConfigFactory):
@@ -285,3 +286,12 @@ class MinionFactory(SaltFactory):
 
     class Meta:
         model = MinionModel
+
+    @classmethod
+    def build(cls, **kwargs):
+        obj = super(MinionFactory, cls).build(**kwargs)
+        obj['container'].run(
+            'salt-run state.event quiet=True count=1 tagmatch="salt/minion/%s/start" node="minion"' % obj['id']
+        )
+
+        return obj
