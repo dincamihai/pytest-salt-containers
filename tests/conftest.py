@@ -13,8 +13,8 @@ def mocks(request, testdir):
         MINION_IMAGE = myregistry/minion_image
     """)
     plugin_mocks = patch.multiple(
-        'saltcontainers.plugin',
-        Client=MagicMock(**{
+        'saltcontainers.factories',
+        DockerClient=MagicMock(**{
             'return_value.inspect_container.return_value': {
                 'NetworkSettings': {'IPAddress': 'fake-ip'}}
         }))

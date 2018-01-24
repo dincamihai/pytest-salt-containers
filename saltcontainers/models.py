@@ -12,10 +12,8 @@ class ContainerModel(dict):
 
     @retry()
     def run(self, command, stream=False):
-        cmd_exec = self['config']['docker_client'].exec_create(
-            self['config']['name'], cmd=command)
-        output = self['config']['docker_client'].exec_start(cmd_exec['Id'], stream=stream)
-        return output
+        return self['config']['client'].run(
+            self['config']['name'], command, stream=stream)
 
     def get_suse_release(self):
         info = dict()
@@ -35,14 +33,18 @@ class ContainerModel(dict):
             )
         )
 
+    def connect(self):
+        for item in self['config']['networking_config']['EndpointsConfig'].keys():
+            self['config']['client'].connect_container_to_network(self['config']['name'], item)
+
+    def disconnect(self):
+        for item in self['config']['networking_config']['EndpointsConfig'].keys():
+            self['config']['client'].disconnect_container_from_network(self['config']['name'], item)
+
     def remove(self):
-        name = self['config']['name']
-        proc = subprocess.Popen('docker rm -f {0} > /dev/null'.format(name), shell=True)
-        out, err = proc.communicate()
-        if proc.returncode:
-            logger.error(err)
-        else:
-            logger.debug(out)
+        self['config']['client'].stop(self['config']['name'])
+        self['config']['client'].remove_container(
+            self['config']['name'], v=True)
 
 
 class MasterModel(dict):
@@ -60,8 +62,18 @@ class MasterModel(dict):
         return self.salt_key_raw('-a', minion_id, '-y')
 
     def salt(self, minion_id, salt_command, *args):
-        docker_command = "salt {0} {1} --output=json -l quiet".format(
+        command = "salt {0} {1} --output=json -l quiet".format(
             minion_id, salt_command, ' '.join(args))
+        data = self['container'].run(command)
+        try:
+            return json.loads(data)
+        except ValueError as err:
+            raise ValueError(
+                "{0}\nIncoming data: {1}".format(err.message, data))
+
+    def salt_run(self, command, *args):
+        docker_command = "salt-run {0} {1} --output=json -l quiet".format(
+            command, ' '.join(args))
         data = self['container'].run(docker_command)
         try:
             return json.loads(data)
@@ -73,12 +85,18 @@ class MasterModel(dict):
 class MinionModel(dict):
 
     def salt_call(self, salt_command, *args):
-        docker_command = "salt-call {0} {1} --output=json -l quiet".format(
+        command = "salt-call {0} {1} --output=json -l quiet".format(
             salt_command, ' '.join(args)
         )
-        raw = self['container'].run(docker_command)
+        raw = self['container'].run(command)
         try:
             out = json.loads(raw)
         except ValueError:
             raise Exception(raw)
         return out['local']
+
+    def stop(self):
+        self['container'].run('pkill salt-minion')
+
+    def start(self):
+        self['container'].run(self['cmd'])

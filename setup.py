@@ -13,7 +13,7 @@ def read(fname):
 
 setup(
     name='pytest-salt-containers',
-    version='0.2.9',
+    version='0.2.dev10',
     author='Mihai Dinca',
     author_email='dincamihai@gmail.com',
     maintainer='Mihai Dinca',
@@ -24,11 +24,12 @@ setup(
     long_description=read('README.rst'),
     packages=['saltcontainers'],
     install_requires=[
+        'py',
         'pytest>=2.9.1',
         'docker-py==1.8.0',
-        'fake-factory',
         'factory-boy',
         'PyYAML',
+        'requests-unixsocket'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
