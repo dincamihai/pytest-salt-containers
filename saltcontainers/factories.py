@@ -226,7 +226,7 @@ class SaltFactory(BaseFactory):
         client.configure_salt(obj['container']['config'])
 
         if os.environ.get('FLAVOR') == 'devel' and os.environ.get('SALT_REPO'):
-            obj.run('pip install -e {0}'.format(
+            obj['container'].run('pip install -e {0}'.format(
                 os.environ.get('SALT_REPO_MOUNTPOINT', '/salt/src/salt-*')))
 
         output = client.run(
