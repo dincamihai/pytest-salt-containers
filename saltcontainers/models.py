@@ -70,6 +70,9 @@ class MasterModel(dict):
         except ValueError as err:
             raise ValueError(
                 "{0}\nIncoming data: {1}".format(err.message, data))
+        except TypeError as err:
+            raise TypeError(
+                "{0}\nIncoming data: {1}".format(err.message, data))
 
     def salt_run(self, command, *args):
         docker_command = "salt-run {0} {1} --output=json -l quiet".format(
