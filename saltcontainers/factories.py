@@ -75,6 +75,8 @@ class SaltConfigFactory(BaseFactory):
 
 class MasterSaltConfigFactory(SaltConfigFactory):
 
+    roster = None
+
     @factory.post_generation
     def apply_states(obj, create, extracted, **kwargs):
         if extracted:
@@ -97,12 +99,6 @@ class MasterSaltConfigFactory(SaltConfigFactory):
             for name, source in extracted.items():
                 sls_file = sls_path / '{0}.sls'.format(name)
                 sls_file.write(py.path.local(source).read())
-
-    @factory.post_generation
-    def roster(obj, create, extracted, **kwargs):
-        if extracted:
-            roster = obj['root'] / 'roster'
-            roster.write(yaml.safe_dump(extracted, default_flow_style=False))
 
 
 class SyndicSaltConfigFactory(MasterSaltConfigFactory):
@@ -180,6 +176,7 @@ class ContainerFactory(BaseFactory):
         ContainerConfigFactory,
         networking_config=dict(name="network1", driver="bridge")
     )
+    ssh_config = None
 
     class Meta:
         model = ContainerModel
@@ -192,11 +189,20 @@ class ContainerFactory(BaseFactory):
         client.create_container(
             **{
                 k: obj['config'][k] for k in obj['config'].keys()
-                if k not in ['salt_config', 'client']
+                if k not in ['salt_config', 'client', 'ssh_config']
             }
         )
         obj['config']['client'].start(obj['config'])
         obj['ip'] = obj['config']['client'].getip(obj['config']['name'])
+
+        if obj['ssh_config']:
+            obj.run('ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -q -N ""')
+            obj.run('ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key -q -N ""')
+            obj.run('ssh-keygen -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key -q -N ""')
+            obj.run('ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -q -N ""')
+            obj.run('./tests/scripts/chpasswd.sh {}:{}'.format(
+                obj['ssh_config']['user'], obj['ssh_config']['password']))
+            obj.run('/usr/sbin/sshd -p {0}'.format(obj['ssh_config'].get('port', 22)))
 
         try:
             resp = obj.run('salt --version')
@@ -226,8 +232,8 @@ class SaltFactory(BaseFactory):
         client.configure_salt(obj['container']['config'])
 
         if os.environ.get('FLAVOR') == 'devel' and os.environ.get('SALT_REPO'):
-            obj['container'].run('pip install -e {0}'.format(
-                os.environ.get('SALT_REPO_MOUNTPOINT', '/salt/src/salt-*')))
+            out = obj['container'].run('pip install --force-reinstall -e {0}'.format(
+                os.environ.get('SALT_REPO_MOUNTPOINT', '/salt/src/salt-devel/')))
 
         output = client.run(
             obj['container']['config']['name'], obj['cmd']
@@ -250,6 +256,7 @@ class MasterFactory(SaltFactory):
     @classmethod
     def build(cls, **kwargs):
         obj = super(MasterFactory, cls).build(**kwargs)
+        obj.update_roster()
         obj['container'].run("salt-call --local state.apply")
         return obj
 

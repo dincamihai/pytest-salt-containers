@@ -1,7 +1,9 @@
+import py
 import time
 import urllib
 import subprocess
 import tarfile
+import tempfile
 import logging
 import requests_unixsocket
 from functools import wraps
@@ -46,6 +48,18 @@ class DockerClient(Client):
 
     def getip(self, machine):
         return self.inspect_container(machine)['NetworkSettings']['Networks'].popitem()[1]['IPAddress']
+
+    def copy_to(self, machine, source, target):
+        source = py.path.local(source)
+        ftmp = tempfile.SpooledTemporaryFile(mode='w+b', dir=source.parts()[-3].strpath)
+        with tarfile.open(fileobj=ftmp, mode='w') as archive:
+            archive.add(
+                source.strpath,
+                arcname=source.strpath.replace(source.parts()[-2].strpath, '.'))
+
+        ftmp.seek(0)
+        machine['container']['config']['client'].put_archive(
+            machine['container']['config']['name'], target, ftmp.read())
 
 
 class NspawnClient(object):

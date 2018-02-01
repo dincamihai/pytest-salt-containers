@@ -1,5 +1,7 @@
 import re
 import json
+import yaml
+import tarfile
 import logging
 import subprocess
 from utils import retry
@@ -83,6 +85,35 @@ class MasterModel(dict):
         except ValueError as err:
             raise ValueError(
                 "{0}\nIncoming data: {1}".format(err.message, data))
+
+    def salt_ssh(self, target, cmd):
+        roster = self['container']['config']['salt_config']['roster']
+        target_id = target['config']['name']
+        SSH = "salt-ssh -l quiet -i --out json --key-deploy --passwd {0} {1} {{0}}".format(
+            target['ssh_config']['password'], target_id)
+        data = self['container'].run(SSH.format(cmd))
+        try:
+            json_data = json.loads(data)
+        except ValueError as err:
+            raise ValueError(
+                "{0}\nIncoming data: {1}".format(err.message, data))
+        except TypeError as err:
+            raise TypeError(
+                "{0}\nIncoming data: {1}".format(err.message, data))
+        return json_data[target_id]
+
+    def update_roster(self):
+        roster = self['container']['config']['salt_config']['root'] / 'roster'
+        content = {}
+        for item in self['container']['config']['salt_config']['roster']:
+            content[item['config']['name']] = {
+                "host": item["ip"],
+                "user": item['ssh_config']['user'],
+                "password": item['ssh_config']['password']
+            }
+        roster.write(yaml.safe_dump(content, default_flow_style=False))
+
+        self['container']['config']['client'].copy_to(self, roster.strpath, '/etc/salt/')
 
 
 class MinionModel(dict):
