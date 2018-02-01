@@ -256,7 +256,8 @@ class MasterFactory(SaltFactory):
     @classmethod
     def build(cls, **kwargs):
         obj = super(MasterFactory, cls).build(**kwargs)
-        obj.update_roster()
+        if obj['container']['config']['salt_config']['roster']:
+            obj.update_roster()
         obj['container'].run("salt-call --local state.apply")
         return obj
 
