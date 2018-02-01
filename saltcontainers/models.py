@@ -4,7 +4,7 @@ import yaml
 import tarfile
 import logging
 import subprocess
-from utils import retry
+from utils import retry, load_json
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -67,24 +67,13 @@ class MasterModel(dict):
         command = "salt {0} {1} --output=json -l quiet".format(
             minion_id, salt_command, ' '.join(args))
         data = self['container'].run(command)
-        try:
-            return json.loads(data)
-        except ValueError as err:
-            raise ValueError(
-                "{0}\nIncoming data: {1}".format(err.message, data))
-        except TypeError as err:
-            raise TypeError(
-                "{0}\nIncoming data: {1}".format(err.message, data))
+        return load_json(data)
 
     def salt_run(self, command, *args):
         docker_command = "salt-run {0} {1} --output=json -l quiet".format(
             command, ' '.join(args))
         data = self['container'].run(docker_command)
-        try:
-            return json.loads(data)
-        except ValueError as err:
-            raise ValueError(
-                "{0}\nIncoming data: {1}".format(err.message, data))
+        return load_json(data)
 
     def salt_ssh(self, target, cmd):
         roster = self['container']['config']['salt_config']['roster']
@@ -92,15 +81,7 @@ class MasterModel(dict):
         SSH = "salt-ssh -l quiet -i --out json --key-deploy --passwd {0} {1} {{0}}".format(
             target['ssh_config']['password'], target_id)
         data = self['container'].run(SSH.format(cmd))
-        try:
-            json_data = json.loads(str(data))
-        except ValueError as err:
-            raise ValueError(
-                "{0}\nIncoming data: {1}".format(err.message, data))
-        except TypeError as err:
-            raise TypeError(
-                "{0}\nIncoming data: {1}".format(err.message, data))
-        return json_data[target_id]
+        return load_json(data)[target_id]
 
     def update_roster(self):
         roster = self['container']['config']['salt_config']['root'] / 'roster'

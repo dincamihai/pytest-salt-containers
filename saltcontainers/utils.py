@@ -1,4 +1,5 @@
 import time
+import json
 import logging
 from functools import wraps
 
@@ -36,3 +37,14 @@ def retry(expected=None):
 
         return wrapper
     return decorator
+
+
+def load_json(data):
+    try:
+        return json.loads(data)
+    except ValueError as err:
+        raise ValueError(
+            "{0}\nIncoming data: {1}".format(err.message, data))
+    except TypeError as err:
+        raise TypeError(
+            "{0}\nIncoming data: {1}".format(err.message, data))
