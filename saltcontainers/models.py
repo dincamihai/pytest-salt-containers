@@ -93,7 +93,7 @@ class MasterModel(dict):
             target['ssh_config']['password'], target_id)
         data = self['container'].run(SSH.format(cmd))
         try:
-            json_data = json.loads(data)
+            json_data = json.loads(str(data))
         except ValueError as err:
             raise ValueError(
                 "{0}\nIncoming data: {1}".format(err.message, data))
