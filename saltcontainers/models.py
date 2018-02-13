@@ -49,7 +49,24 @@ class ContainerModel(dict):
             self['config']['name'], v=True)
 
 
-class MasterModel(dict):
+class BaseModel(dict):
+
+    def salt_call(self, salt_command, *args):
+        command = "salt-call {0} {1} --output=json -l quiet".format(
+            salt_command, ' '.join(args)
+        )
+        raw = self['container'].run(command)
+        try:
+            out = json.loads(raw)
+        except ValueError:
+            raise Exception(raw)
+        return out['local']
+
+    def start(self):
+        self['container'].run(self['cmd'])
+
+
+class MasterModel(BaseModel):
 
     def salt_key_raw(self, *args):
         command = ['salt-key']
@@ -97,21 +114,7 @@ class MasterModel(dict):
         self['container']['config']['client'].copy_to(self, roster.strpath, '/etc/salt/')
 
 
-class MinionModel(dict):
-
-    def salt_call(self, salt_command, *args):
-        command = "salt-call {0} {1} --output=json -l quiet".format(
-            salt_command, ' '.join(args)
-        )
-        raw = self['container'].run(command)
-        try:
-            out = json.loads(raw)
-        except ValueError:
-            raise Exception(raw)
-        return out['local']
+class MinionModel(BaseModel):
 
     def stop(self):
         self['container'].run('pkill salt-minion')
-
-    def start(self):
-        self['container'].run(self['cmd'])
