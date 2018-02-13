@@ -68,9 +68,10 @@ class SaltConfigFactory(BaseFactory):
             sls_file.write(yaml.safe_dump(content, default_flow_style=False))
 
         sls_path = obj['root'].ensure_dir('sls')
-        for name, source in obj['sls'].items():
-            sls_file = sls_path / '{0}.sls'.format(name)
-            sls_file.write_text(py.path.local(source).read().decode('utf8'), 'utf8')
+        for item in obj['sls']:
+            source = py.path.local(item)
+            sls_file = sls_path / '{0}'.format(source.basename)
+            sls_file.write_text(source.read().decode('utf8'), 'utf8')
 
 
 class MasterSaltConfigFactory(SaltConfigFactory):
