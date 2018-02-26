@@ -57,7 +57,7 @@ class BaseModel(dict):
         )
         raw = self['container'].run(command)
         try:
-            out = json.loads(raw)
+            out = json.loads(raw or '{}')
         except ValueError:
             raise Exception(raw)
         return out['local']
