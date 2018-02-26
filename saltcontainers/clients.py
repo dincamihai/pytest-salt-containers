@@ -21,7 +21,7 @@ class DockerClient(Client):
         return super(DockerClient, self).start(config['name'])
 
     def run(self, name, command, stream=None):
-        cmd_exec = self.exec_create(name, cmd=command)
+        cmd_exec = self.exec_create(name, cmd=command, stderr=False)
         return self.exec_start(cmd_exec['Id'], stream=stream)
 
     def drop(self, name):
