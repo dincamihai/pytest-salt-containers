@@ -52,7 +52,7 @@ class ContainerModel(dict):
 class BaseModel(dict):
 
     def salt_call(self, salt_command, *args):
-        command = "salt-call {0} {1} --output=json -l quiet 2>/dev/null".format(
+        command = "salt-call {0} {1} --output=json -l quiet".format(
             salt_command, ' '.join(args)
         )
         raw = self['container'].run(command)
@@ -81,13 +81,13 @@ class MasterModel(BaseModel):
         return self.salt_key_raw('-a', minion_id, '-y')
 
     def salt(self, minion_id, salt_command, *args):
-        command = "salt {0} {1} --output=json -l quiet 2>/dev/null".format(
+        command = "salt {0} {1} --output=json -l quiet".format(
             minion_id, salt_command, ' '.join(args))
         data = self['container'].run(command)
         return load_json(data)
 
     def salt_run(self, command, *args):
-        docker_command = "salt-run {0} {1} --output=json -l quiet 2>/dev/null".format(
+        docker_command = "salt-run {0} {1} --output=json -l quiet".format(
             command, ' '.join(args))
         data = self['container'].run(docker_command)
         return load_json(data)
@@ -95,7 +95,7 @@ class MasterModel(BaseModel):
     def salt_ssh(self, target, cmd):
         roster = self['container']['config']['salt_config']['roster']
         target_id = target['config']['name']
-        SSH = "salt-ssh -l quiet -i --out json --key-deploy --passwd {0} {1} {{0}} 2>/dev/null".format(
+        SSH = "salt-ssh -l quiet -i --out json --key-deploy --passwd {0} {1} {{0}}".format(
             target['ssh_config']['password'], target_id)
         data = self['container'].run(SSH.format(cmd))
         return load_json(data)[target_id]
