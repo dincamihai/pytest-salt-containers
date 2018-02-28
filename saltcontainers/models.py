@@ -60,7 +60,7 @@ class BaseModel(dict):
             out = json.loads(raw or '{}')
         except ValueError:
             raise Exception(raw)
-        return out['local']
+        return out.get('local')
 
     def start(self):
         self['container'].run(self['cmd'])
