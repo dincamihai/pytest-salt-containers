@@ -118,7 +118,7 @@ class SyndicSaltConfigFactory(MasterSaltConfigFactory):
 
 class ContainerConfigFactory(BaseFactory):
     name = factory.fuzzy.FuzzyText(
-        length=5, prefix='container_', chars=string.ascii_letters)
+        length=5, prefix='container_{}_'.format(os.environ.get('BUILD_NUMBER', '')), chars=string.ascii_letters)
     salt_config = factory.SubFactory(SaltConfigFactory)
     image = None
     entrypoint = '/bin/bash'
