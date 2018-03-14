@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import os
 import pytest
 from docker import Client
 from faker import Faker
@@ -76,7 +77,7 @@ def master_container_extras():
 def master_container(request, salt_root, master_container_extras, salt_master_config):
     fake = Faker()
     obj = ContainerFactory(
-        config__name='master_{0}_{1}'.format(fake.word(), fake.word()),
+        config__name='master_{0}_{1}_{2}'.format(fake.word(), fake.word(), os.environ.get('ST_JOB_ID', '')),
         config__image=request.config.getini('IMAGE'),
         config__salt_config__tmpdir=salt_root,
         config__salt_config__conf_type='master',
@@ -98,7 +99,7 @@ def minion_container(request, salt_root, minion_container_extras, salt_minion_co
     fake = Faker()
     image = request.config.getini('MINION_IMAGE') or request.config.getini('IMAGE')
     obj = ContainerFactory(
-        config__name='minion_{0}_{1}'.format(fake.word(), fake.word()),
+        config__name='minion_{0}_{1}_{2}'.format(fake.word(), fake.word(), os.environ.get('ST_JOB_ID', '')),
         config__image=image,
         config__salt_config__tmpdir=salt_root,
         config__salt_config__conf_type='minion',
@@ -159,8 +160,8 @@ def default_master_args(request, salt_root, file_root, pillar_root, is_syndic=Fa
         base_config['syndic_master'] = master['container']['ip']
 
     args = dict(
-        container__config__name='{0}_{1}_{2}'.format(
-            'syndic' if is_syndic else 'master', fake.word(), fake.word()),
+        container__config__name='{0}_{1}_{2}_{3}'.format(
+            'syndic' if is_syndic else 'master', fake.word(), fake.word(), os.environ.get('ST_JOB_ID', '')),
         container__config__image=request.config.getini('IMAGE'),
         container__config__salt_config__conf_type='master',
         container__config__salt_config__tmpdir=salt_root,
