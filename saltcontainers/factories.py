@@ -102,6 +102,12 @@ class MasterSaltConfigFactory(SaltConfigFactory):
                 sls_file = sls_path / '{0}'.format(source.basename)
                 sls_file.write_text(source.read().decode('utf8'), 'utf8')
 
+    @factory.post_generation
+    def roster(obj, create, extracted, **kwargs):
+        if extracted:
+            roster = obj['root'] / 'roster'
+            roster.write(yaml.safe_dump(extracted, default_flow_style=False))
+
 
 class SyndicSaltConfigFactory(MasterSaltConfigFactory):
 
