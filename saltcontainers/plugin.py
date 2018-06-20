@@ -132,10 +132,13 @@ def wait_cached(master, minion):
 
 
 def accept(master, minion):
-    master.salt_key_accept(minion['id'])
     tag = "salt/minion/{0}/start".format(minion['id'])
-    master['container'].run(
-        'salt-run state.event tagmatch="{0}" count=1'.format(tag))
+    cmd = 'salt-run state.event tagmatch="{0}" count=1'.format(tag)
+    stream = master['container'].run(cmd, stream=True)
+    master.salt_key_accept(minion['id'])
+    for item in stream:
+        if minion['id'] in item:
+            break
     assert minion['id'] in master.salt_key(minion['id'])['minions']
 
 
