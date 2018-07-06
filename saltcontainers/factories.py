@@ -290,9 +290,4 @@ class MinionFactory(SaltFactory):
 
     @classmethod
     def build(cls, **kwargs):
-        obj = super(MinionFactory, cls).build(**kwargs)
-        obj['container'].run(
-            'salt-run state.event quiet=True count=1 tagmatch="salt/minion/%s/start" node="minion"' % obj['id']
-        )
-
-        return obj
+        return super(MinionFactory, cls).build(**kwargs)
