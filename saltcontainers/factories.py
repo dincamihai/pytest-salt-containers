@@ -198,13 +198,22 @@ class ContainerFactory(BaseFactory):
         obj['ip'] = obj['config']['client'].getip(obj['config']['name'])
 
         if obj['ssh_config']:
-            obj.run('ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -q -N ""')
-            obj.run('ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key -q -N ""')
-            obj.run('ssh-keygen -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key -q -N ""')
-            obj.run('ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -q -N ""')
+            keys = dict(
+                rsa='/etc/ssh/ssh_host_rsa_key',
+                dsa='/etc/ssh/ssh_host_dsa_key',
+                ecdsa='/etc/ssh/ssh_host_ecdsa_key',
+                ed_25519='/etc/ssh/ssh_host_ed25519_key')
+            for k, v in keys.iteritems():
+                if not obj.run('ls {0}'.format(v)):
+                    out = obj.run('ssh-keygen -t {0} -f {1} -q -N ""'.format(k, v))
             obj.run('./tests/scripts/chpasswd.sh {}:{}'.format(
                 obj['ssh_config']['user'], obj['ssh_config']['password']))
-            obj.run('/usr/sbin/sshd -p {0}'.format(obj['ssh_config'].get('port', 22)))
+            obj.run('mkdir -p /run/sshd')  # required in ubuntu
+            obj.run(
+                '/usr/sbin/sshd -p {0} -o "PermitRootLogin yes" -o "PasswordAuthentication yes"'.format(
+                    obj['ssh_config'].get('port', 22)
+                )
+            )
 
         try:
             resp = obj.run('salt --version')
