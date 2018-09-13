@@ -125,8 +125,10 @@ def minion(request, minion_container):
 
 def wait_cached(master, minion):
     command = 'salt-run --out json -l quiet state.event tagmatch="salt/auth"'
-    for item in master['container'].run(command, stream=True):
+    cmd_exec_id, stream = master['container'].check_run(command, stream=True)
+    for item in stream:
         if minion['id'] in item:
+            master['container'].kill(cmd_exec_id)
             break
     assert minion['id'] in master.salt_key(minion['id'])['minions_pre']
 

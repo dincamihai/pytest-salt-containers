@@ -12,10 +12,31 @@ logger.setLevel(logging.INFO)
 
 class ContainerModel(dict):
 
+    def _get_container_pid(self, pid):
+        container_pid = None
+        if pid:
+            with open('/proc/{0}/status'.format(pid), 'rb') as _file:
+                contents = _file.read()
+                try:
+                    container_pid = re.search("NSpid.+{0}.+".format(pid), contents).group().split('\t')[-1]
+                except:
+                    logger.warning("Unable to obtain container pid from {0}".format(pid))
+        return container_pid
+
+    def kill(self, cmd_exec_id):
+        pid = self['config']['client'].exec_inspect(cmd_exec_id).get('Pid', None)
+        container_pid = self._get_container_pid(pid)
+        self.run('kill -9 {0}'.format(container_pid))
+
     @retry()
     def run(self, command, stream=False):
         return self['config']['client'].run(
             self['config']['name'], command, stream=stream)
+
+    @retry()
+    def check_run(self, command, stream=False):
+        cmd_exec = self['config']['client'].exec_create(self['config']['name'], cmd=command, stderr=False)
+        return cmd_exec['Id'], self['config']['client'].exec_start(cmd_exec['Id'], stream=stream)
 
     def get_suse_release(self):
         info = dict()
