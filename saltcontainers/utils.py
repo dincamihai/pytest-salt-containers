@@ -28,7 +28,7 @@ def retry(expected=None):
                     output = func(*args, **kwargs)
                     success = (expected is None) or (output is expected)
                 except Exception as exc:
-                    logger.error(exc.message)
+                    logger.error(exc)
                     success = False
                     output = None
                 if not success:
@@ -44,7 +44,7 @@ def load_json(data):
         return json.loads(data)
     except ValueError as err:
         raise ValueError(
-            "{0}\nIncoming data: {1}".format(err.message, data))
+            "{0}\nIncoming data: {1}".format(err, data))
     except TypeError as err:
         raise TypeError(
-            "{0}\nIncoming data: {1}".format(err.message, data))
+            "{0}\nIncoming data: {1}".format(err, data))
