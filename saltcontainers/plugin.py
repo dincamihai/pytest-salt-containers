@@ -179,8 +179,8 @@ def default_master_args(request, salt_root, file_root, pillar_root, is_syndic=Fa
 def default_minion_args(request, salt_root, master_ip):
     fake = Faker()
     return dict(
-        container__config__name='minion_{0}_{1}'.format(
-            fake.word(), fake.word()),
+        container__config__name='minion_{0}_{1}_{2}'.format(
+            fake.word(), fake.word(), os.environ.get('ST_JOB_ID', '')),
         container__config__image=(
             request.config.getini('IMAGE') or
             request.config.getini('MINION_IMAGE')),
