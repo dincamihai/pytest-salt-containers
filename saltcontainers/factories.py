@@ -223,7 +223,7 @@ class ContainerFactory(BaseFactory):
             )
 
         try:
-            resp = obj.run('salt --version')
+            resp = str(obj.run('salt-call --version').decode())
             message = "{0}: {1}".format(
                 obj['config']['salt_config']['conf_type'], resp.strip())
             logger.info(message)
