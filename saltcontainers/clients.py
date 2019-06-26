@@ -139,6 +139,6 @@ class NspawnClient(object):
             stream=stream,
             data=dict(machine=name, command=command, stream=stream))
         if not stream:
-            return resp.json()['stdoutdata']
+            return str(resp.json()['stdoutdata'].decode())
         else:
             return resp.iter_lines()

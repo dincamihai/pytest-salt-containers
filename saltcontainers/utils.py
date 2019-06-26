@@ -23,7 +23,7 @@ def retry(expected=None):
             output = None
             start_time = time.time()
             while not success and not time_limit_reached(start_time):
-                logger.debug('retry: ' + func.func_name)
+                logger.debug('retry: ' + func.__name__)
                 try:
                     output = func(*args, **kwargs)
                     success = (expected is None) or (output is expected)
@@ -41,7 +41,7 @@ def retry(expected=None):
 
 def load_json(data):
     try:
-        return json.loads(data)
+        return json.loads(str(data.decode()))
     except ValueError as err:
         raise ValueError(
             "{0}\nIncoming data: {1}".format(err, data))

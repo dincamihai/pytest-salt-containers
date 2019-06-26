@@ -5,8 +5,9 @@ import string
 import logging
 import factory
 import factory.fuzzy
-from models import ContainerModel, MasterModel, MinionModel
-from clients import DockerClient, NspawnClient
+import six
+from .models import ContainerModel, MasterModel, MinionModel
+from .clients import DockerClient, NspawnClient
 
 
 logger = logging.getLogger(__name__)
@@ -71,7 +72,10 @@ class SaltConfigFactory(BaseFactory):
         for item in obj['sls']:
             source = py.path.local(item)
             sls_file = sls_path / '{0}'.format(source.basename)
-            sls_file.write_text(source.read().decode('utf8'), 'utf8')
+            if six.PY3:
+                sls_file.write_text(source.read(), 'utf8')
+            else:
+                sls_file.write_text(source.read().decode('utf8'), 'utf8')
 
 
 class MasterSaltConfigFactory(SaltConfigFactory):
@@ -100,7 +104,10 @@ class MasterSaltConfigFactory(SaltConfigFactory):
             for item in extracted:
                 source = py.path.local(item)
                 sls_file = sls_path / '{0}'.format(source.basename)
-                sls_file.write_text(source.read().decode('utf8'), 'utf8')
+                if six.PY3:
+                    sls_file.write_text(source.read(), 'utf8')
+                else:
+                    sls_file.write_text(source.read().decode('utf8'), 'utf8')
 
 
 class SyndicSaltConfigFactory(MasterSaltConfigFactory):
@@ -243,13 +250,15 @@ class SaltFactory(BaseFactory):
         client.configure_salt(obj['container']['config'])
 
         if os.environ.get('FLAVOR') == 'devel' and os.environ.get('SALT_REPO'):
-            out = obj['container'].run('pip install --force-reinstall -e {0}'.format(
+            out = obj['container'].run('pip install --force-reinstall --ignore-installed PyYAML -e {0}'.format(
+                os.environ.get('SALT_REPO_MOUNTPOINT', '/salt/src/salt-devel/')))
+            obj['container'].run('find {0} | grep pyc$ | xargs rm -f'.format(
                 os.environ.get('SALT_REPO_MOUNTPOINT', '/salt/src/salt-devel/')))
 
         output = client.run(
             obj['container']['config']['name'], obj['cmd']
         )
-        assert 'executable file not found' not in output
+        assert 'executable file not found' not in str(output.decode())
         return obj
 
 

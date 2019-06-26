@@ -4,7 +4,7 @@ import os
 import pytest
 from docker import Client
 from faker import Faker
-from utils import retry
+from .utils import retry
 from saltcontainers.factories import (
     ContainerFactory, MasterFactory, SyndicFactory, MinionFactory
 )
@@ -127,7 +127,7 @@ def wait_cached(master, minion):
     command = 'salt-run --out json -l quiet state.event tagmatch="salt/auth"'
     cmd_exec_id, stream = master['container'].check_run(command, stream=True)
     for item in stream:
-        if minion['id'] in item:
+        if minion['id'] in str(item.decode()):
             master['container'].kill(cmd_exec_id)
             break
     assert minion['id'] in master.salt_key(minion['id'])['minions_pre']
@@ -139,7 +139,7 @@ def accept(master, minion):
     stream = master['container'].run(cmd, stream=True)
     master.salt_key_accept(minion['id'])
     for item in stream:
-        if minion['id'] in item:
+        if minion['id'] in str(item.decode()):
             break
     assert minion['id'] in master.salt_key(minion['id'])['minions']
 
