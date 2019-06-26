@@ -210,7 +210,7 @@ class ContainerFactory(BaseFactory):
                 dsa='/etc/ssh/ssh_host_dsa_key',
                 ecdsa='/etc/ssh/ssh_host_ecdsa_key',
                 ed_25519='/etc/ssh/ssh_host_ed25519_key')
-            for k, v in keys.iteritems():
+            for k, v in six.iteritems(keys):
                 if not obj.run('ls {0}'.format(v)):
                     out = obj.run('ssh-keygen -t {0} -f {1} -q -N ""'.format(k, v))
             obj.run('./tests/scripts/chpasswd.sh {}:{}'.format(
