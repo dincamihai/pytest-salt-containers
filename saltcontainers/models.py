@@ -4,7 +4,7 @@ import yaml
 import tarfile
 import logging
 import subprocess
-from utils import retry, load_json
+from .utils import retry, load_json
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -78,7 +78,7 @@ class BaseModel(dict):
         )
         raw = self['container'].run(command)
         try:
-            out = json.loads(raw or '{}')
+            out = json.loads(str(raw.decode()) or '{}')
         except ValueError:
             raise Exception(raw)
         return out.get('local')
@@ -96,7 +96,7 @@ class MasterModel(BaseModel):
         return self['container'].run(' '.join(command))
 
     def salt_key(self, *args):
-        return json.loads(self.salt_key_raw(*args))
+        return json.loads(str(self.salt_key_raw(*args).decode()))
 
     def salt_key_accept(self, minion_id):
         return self.salt_key_raw('-a', minion_id, '-y')
