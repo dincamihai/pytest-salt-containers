@@ -41,7 +41,7 @@ def retry(expected=None):
 
 def load_json(data):
     try:
-        return json.loads(str(data.decode()))
+        return json.loads(data)
     except ValueError as err:
         raise ValueError(
             "{0}\nIncoming data: {1}".format(err, data))

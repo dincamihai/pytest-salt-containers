@@ -3,6 +3,7 @@ import json
 import yaml
 import tarfile
 import logging
+import six
 import subprocess
 from .utils import retry, load_json
 
@@ -78,7 +79,7 @@ class BaseModel(dict):
         )
         raw = self['container'].run(command)
         try:
-            out = json.loads(str(raw.decode()) or '{}')
+            out = json.loads(raw or '{}')
         except ValueError:
             raise Exception(raw)
         return out.get('local')
@@ -96,7 +97,7 @@ class MasterModel(BaseModel):
         return self['container'].run(' '.join(command))
 
     def salt_key(self, *args):
-        return json.loads(str(self.salt_key_raw(*args).decode()))
+        return json.loads(self.salt_key_raw(*args))
 
     def salt_key_accept(self, minion_id):
         return self.salt_key_raw('-a', minion_id, '-y')

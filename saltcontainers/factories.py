@@ -223,7 +223,7 @@ class ContainerFactory(BaseFactory):
             )
 
         try:
-            resp = str(obj.run('salt-call --version').decode())
+            resp = six.u(obj.run('salt-call --version')).decode()
             message = "{0}: {1}".format(
                 obj['config']['salt_config']['conf_type'], resp.strip())
             logger.info(message)
@@ -258,7 +258,7 @@ class SaltFactory(BaseFactory):
         output = client.run(
             obj['container']['config']['name'], obj['cmd']
         )
-        assert 'executable file not found' not in str(output.decode())
+        assert 'executable file not found' not in six.u(output).decode()
         return obj
 
 
