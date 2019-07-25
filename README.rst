@@ -32,7 +32,7 @@ We can do that by creating a new file in the `tests` folder:
     ./tests/test_example.py::
 
         def test_ping_minion(master, minion):
-        pass
+            pass
 
 This uses `master` and `minion` fixtures defined in `tests/conftest.py`.
 
